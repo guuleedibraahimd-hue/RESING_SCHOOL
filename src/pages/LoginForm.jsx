@@ -5,17 +5,39 @@ export default function LoginForm({ role }) {
 
   const navigate = useNavigate();
 
-  const [email,setEmail]=useState("");
-  const [password,setPassword]=useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
-  const login=()=>{
+  const login = async () => {
 
-      if(email==="" || password===""){
+      if(username==="" || password===""){
           alert("Fill all fields");
           return;
       }
 
-      navigate("/admin/dashboard");
+      if(role==="Admin"){
+          // later admin firestore
+          navigate("/admin/dashboard");
+          return;
+      }
+
+      if(role==="Teacher"){
+          // later teacher firestore
+          navigate("/teacher/dashboard");
+          return;
+      }
+
+      if(role==="Student"){
+          // later student firestore
+          navigate("/student/dashboard");
+          return;
+      }
+
+      if(role==="Parent"){
+          // later parent firestore
+          navigate("/parent/dashboard");
+          return;
+      }
 
   }
 
@@ -47,11 +69,19 @@ boxShadow:"0 0 30px rgba(0,0,0,.1)"
 
 <input
 
-placeholder="Email"
+placeholder={
+role==="Admin"
+? "Admin Email"
 
-value={email}
+: role==="Teacher"
+? "Teacher Username"
 
-onChange={(e)=>setEmail(e.target.value)}
+: "Student ID"
+}
+
+value={username}
+
+onChange={(e)=>setUsername(e.target.value)}
 
 style={input}
 

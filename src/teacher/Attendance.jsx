@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { db } from "../../firebase/firebase";
+import { db } from "../firebase/firebase";
 import {
   collection,
   getDocs,
   query,
   where,
   setDoc,
-  addDoc,
   doc,
 } from "firebase/firestore";
 
@@ -24,8 +23,6 @@ export default function Attendance() {
   const [sessionSaved, setSessionSaved] = useState(false);
 
   const teacherId = localStorage.getItem("teacherId") || "";
-  // Magaca macallinka - waxaan isticmaaleynaa notification-ka
-  const teacherName = localStorage.getItem("teacherName") || teacherId;
 
   useEffect(() => {
     loadClasses();
@@ -155,23 +152,6 @@ export default function Attendance() {
           updatedAt: new Date(),
         });
       }
-
-      // ---- Samee Notification cusub oo loogu talagalay Admin ----
-      const presentN = students.filter((s) => attendance[s.id] === "Present").length;
-      const absentN = students.filter((s) => attendance[s.id] === "Absent").length;
-
-      await addDoc(collection(db, "notifications"), {
-        title: "Xaadirin Cusub",
-        message: `${teacherName} wuxuu xaadiriyay Class ${selectedClass} (${date}, Xiisad #${nextSessionNumber}) — ${presentN} Present, ${absentN} Absent.`,
-        type: "attendance",
-        className: selectedClass,
-        teacherId,
-        teacherName,
-        date,
-        sessionNumber: nextSessionNumber,
-        read: false,
-        createdAt: new Date(),
-      });
 
       setExistingSessions([...existingSessions, nextSessionNumber]);
       setSessionSaved(true);

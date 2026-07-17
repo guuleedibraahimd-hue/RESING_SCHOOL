@@ -10,12 +10,17 @@ export default function Students() {
         <h1>Students</h1>
 
         <Link to="/admin/add-student">
-          <button style={{ cursor: "pointer" }}>Add Student</button>
+          <button style={{ cursor: "pointer" }}>
+            Add Student
+          </button>
         </Link>
 
-        <button style={{ marginLeft: 10, cursor: "pointer" }}>
-          Bulk Registration
-        </button>
+        <Link to="/admin/bulk-registration">
+          <button style={{ marginLeft: 10, cursor: "pointer" }}>
+            Bulk Registration
+          </button>
+        </Link>
+
       </div>
     </div>
   );
