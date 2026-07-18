@@ -1,0 +1,638 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  onSnapshot,
+} from "firebase/firestore";
+import { db } from "../firebase/firebase";
+
+const COLORS = {
+  bg: "#0b1120",
+  panel: "#111a2e",
+  panelSoft: "#0f1626",
+  border: "#1f2b45",
+  text: "#e7ecf7",
+  textDim: "#8b97b0",
+  accent: "#3ecf8e",
+  accentSoft: "rgba(62,207,142,0.12)",
+  warn: "#f5a623",
+  danger: "#ef5a6f",
+};
+
+// Class order: 1 -> 8 (primary), then F1 -> F4 (secondary/form)
+const CLASS_ORDER = ["1", "2", "3", "4", "5", "6", "7", "8", "F1", "F2", "F3", "F4"];
+function classRank(className) {
+  const idx = CLASS_ORDER.indexOf(String(className || "").toUpperCase());
+  return idx === -1 ? 999 : idx;
+}
+function groupByClass(items) {
+  const groups = {};
+  items.forEach((item) => {
+    const key = String(item.className || "Unknown").toUpperCase();
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(item);
+  });
+  return Object.entries(groups).sort(
+    ([a], [b]) => classRank(a) - classRank(b)
+  );
+}
+
+export default function StudentDashboard() {
+  const navigate = useNavigate();
+  const studentId = localStorage.getItem("studentId");
+
+  const [student, setStudent] = useState(null);
+  const [results, setResults] = useState([]);
+  const [attendance, setAttendance] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [tab, setTab] = useState("overview");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!studentId) {
+      navigate("/student-login");
+      return;
+    }
+
+    const load = async () => {
+      try {
+        const studentSnap = await getDoc(doc(db, "students", studentId));
+        if (studentSnap.exists()) {
+          setStudent({ id: studentSnap.id, ...studentSnap.data() });
+        }
+
+        try {
+          const attQ = query(
+            collection(db, "attendance"),
+            where("studentId", "==", studentId)
+          );
+          const attSnap = await getDocs(attQ);
+          setAttendance(attSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        } catch (e) {
+          setAttendance([]);
+        }
+
+        try {
+          const msgQ = query(
+            collection(db, "messages"),
+            where("audience", "in", ["all", "students"])
+          );
+          const msgSnap = await getDocs(msgQ);
+          setMessages(msgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        } catch (e) {
+          setMessages([]);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+
+    // Live exam results feed — updates instantly when a teacher/admin adds a result
+    let unsubscribeResults = () => {};
+    try {
+      const resultsQ = query(
+        collection(db, "results"),
+        where("studentId", "==", studentId)
+      );
+      unsubscribeResults = onSnapshot(resultsQ, (snap) => {
+        setResults(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      });
+    } catch (e) {
+      setResults([]);
+    }
+
+    // Live payments feed — updates instantly when the cashier records a payment
+    let unsubscribe = () => {};
+    try {
+      const paymentsQ = query(
+        collection(db, "payments"),
+        where("studentId", "==", studentId)
+      );
+      unsubscribe = onSnapshot(paymentsQ, (snap) => {
+        setPayments(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      });
+    } catch (e) {
+      setPayments([]);
+    }
+
+    return () => {
+      unsubscribeResults();
+      unsubscribe();
+    };
+  }, [studentId, navigate]);
+
+  const logout = () => {
+    localStorage.removeItem("studentId");
+    localStorage.removeItem("studentName");
+    navigate("/student-login");
+  };
+
+  const attendanceStats = attendance.reduce(
+    (acc, a) => {
+      const status = (a.status || "").toLowerCase();
+      if (status === "present") acc.present += 1;
+      else if (status === "absent") acc.absent += 1;
+      else if (status === "late") acc.late += 1;
+      acc.total += 1;
+      return acc;
+    },
+    { present: 0, absent: 0, late: 0, total: 0 }
+  );
+  const attendanceRate =
+    attendanceStats.total > 0
+      ? Math.round((attendanceStats.present / attendanceStats.total) * 100)
+      : null;
+
+  const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const monthlyFee = Number(student?.monthlyFee) || 0;
+  const sortedPayments = [...payments].sort((a, b) => {
+    const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date || 0);
+    const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date || 0);
+    return dateB - dateA;
+  });
+
+  if (loading) {
+    return (
+      <div style={{ ...styles.page, alignItems: "center", justifyContent: "center", display: "flex" }}>
+        <div style={{ color: COLORS.textDim, fontSize: 14, letterSpacing: 1 }}>LOADING…</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.page}>
+      <aside style={styles.sidebar}>
+        <div style={styles.brand}>
+          <div style={styles.brandMark}>RS</div>
+          <div>
+            <div style={styles.brandTitle}>Resing School</div>
+            <div style={styles.brandSub}>Student Portal</div>
+          </div>
+        </div>
+
+        <nav style={styles.nav}>
+          {[
+            { key: "overview", label: "Overview" },
+            { key: "results", label: "Exam Results" },
+            { key: "attendance", label: "Attendance" },
+            { key: "payments", label: "Payments" },
+            { key: "messages", label: "Messages" },
+          ].map((item) => (
+            <button
+              key={item.key}
+              onClick={() => setTab(item.key)}
+              style={{
+                ...styles.navItem,
+                ...(tab === item.key ? styles.navItemActive : {}),
+              }}
+            >
+              {item.label}
+              {item.key === "messages" && messages.length > 0 && (
+                <span style={styles.navBadge}>{messages.length}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        <button onClick={logout} style={styles.logoutBtn}>
+          Log out
+        </button>
+      </aside>
+
+      <main style={styles.main}>
+        <header style={styles.header}>
+          <div>
+            <div style={styles.eyebrow}>Student ID {studentId}</div>
+            <h1 style={styles.h1}>
+              {student?.fullName ? `Welcome, ${student.fullName.split(" ")[0]}` : "Welcome"}
+            </h1>
+          </div>
+          <div style={styles.classPill}>{student?.className || "—"}</div>
+        </header>
+
+        {tab === "overview" && (
+          <section style={styles.grid}>
+            <StatCard
+              label="Attendance rate"
+              value={attendanceRate !== null ? `${attendanceRate}%` : "No data"}
+              accent={COLORS.accent}
+            />
+            <StatCard
+              label="Exam results recorded"
+              value={results.length}
+              accent={COLORS.warn}
+            />
+            <StatCard
+              label="Total paid"
+              value={`$${totalPaid.toLocaleString()}`}
+              accent={COLORS.accent}
+            />
+            <StatCard
+              label="Messages from admin"
+              value={messages.length}
+              accent={COLORS.danger}
+            />
+            <div style={{ ...styles.panel, gridColumn: "1 / -1" }}>
+              <div style={styles.panelTitle}>Student details</div>
+              <div style={styles.detailGrid}>
+                <Detail label="Full name" value={student?.fullName} />
+                <Detail label="Class" value={student?.className} />
+                <Detail label="District" value={student?.district} />
+                <Detail label="Monthly fee" value={student?.monthlyFee} />
+                <Detail label="Parent phone" value={student?.parentPhone} />
+                <Detail label="Student phone" value={student?.studentPhone} />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {tab === "results" && (
+          <section style={styles.panel}>
+            <div style={styles.panelTitle}>Exam results — all classes</div>
+            {results.length === 0 ? (
+              <EmptyState text="No exam results have been recorded yet." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                {groupByClass(results).map(([className, classResults]) => (
+                  <div key={className}>
+                    <div style={styles.classGroupLabel}>Class {className}</div>
+                    <table style={styles.table}>
+                      <thead>
+                        <tr>
+                          <th style={styles.th}>Subject</th>
+                          <th style={styles.th}>Exam</th>
+                          <th style={styles.th}>Marks</th>
+                          <th style={styles.th}>%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {classResults.map((r) => {
+                          const marks = Number(r.marks);
+                          const maxMarks = Number(r.maxMarks);
+                          const pct =
+                            !isNaN(marks) && maxMarks
+                              ? Math.round((marks / maxMarks) * 100)
+                              : null;
+                          return (
+                            <tr key={r.id}>
+                              <td style={styles.td}>{r.subject || "—"}</td>
+                              <td style={styles.td}>{r.examName || r.term || "—"}</td>
+                              <td style={styles.td}>
+                                {!isNaN(marks) ? `${marks} / ${maxMarks || "—"}` : "—"}
+                              </td>
+                              <td style={styles.td}>
+                                {pct !== null ? (
+                                  <span
+                                    style={{
+                                      color: pct >= 50 ? COLORS.accent : COLORS.danger,
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {pct}%
+                                  </span>
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {tab === "attendance" && (
+          <section style={styles.panel}>
+            <div style={styles.panelTitle}>Attendance — all classes</div>
+            {attendance.length === 0 ? (
+              <EmptyState text="No attendance records yet." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                {groupByClass(attendance).map(([className, classAttendance]) => (
+                  <div key={className}>
+                    <div style={styles.classGroupLabel}>Class {className}</div>
+                    <table style={styles.table}>
+                      <thead>
+                        <tr>
+                          <th style={styles.th}>Date</th>
+                          <th style={styles.th}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {classAttendance.map((a) => (
+                          <tr key={a.id}>
+                            <td style={styles.td}>{a.date || "—"}</td>
+                            <td style={styles.td}>
+                              <StatusPill status={a.status} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {tab === "payments" && (
+          <section style={styles.panel}>
+            <div style={styles.panelTitle}>Payments</div>
+            <div style={styles.paymentSummaryRow}>
+              <div style={styles.paymentSummaryCard}>
+                <div style={styles.detailLabel}>Monthly fee</div>
+                <div style={styles.statValue}>${monthlyFee.toLocaleString()}</div>
+              </div>
+              <div style={styles.paymentSummaryCard}>
+                <div style={styles.detailLabel}>Total paid</div>
+                <div style={{ ...styles.statValue, color: COLORS.accent }}>
+                  ${totalPaid.toLocaleString()}
+                </div>
+              </div>
+            </div>
+            {sortedPayments.length === 0 ? (
+              <EmptyState text="No payments have been recorded yet." />
+            ) : (
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Date</th>
+                    <th style={styles.th}>Amount</th>
+                    <th style={styles.th}>Method</th>
+                    <th style={styles.th}>Recorded by</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedPayments.map((p) => {
+                    const d = p.date?.toDate ? p.date.toDate() : p.date;
+                    return (
+                      <tr key={p.id}>
+                        <td style={styles.td}>
+                          {d ? new Date(d).toLocaleDateString() : "—"}
+                        </td>
+                        <td style={styles.td}>${Number(p.amount || 0).toLocaleString()}</td>
+                        <td style={styles.td}>{p.method || "—"}</td>
+                        <td style={styles.td}>{p.cashierName || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </section>
+        )}
+
+        {tab === "messages" && (
+          <section style={styles.panel}>
+            <div style={styles.panelTitle}>Messages from admin</div>
+            {messages.length === 0 ? (
+              <EmptyState text="No messages yet." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {messages.map((m) => (
+                  <div key={m.id} style={styles.messageCard}>
+                    <div style={styles.messageTitle}>{m.title || "Announcement"}</div>
+                    <div style={styles.messageBody}>{m.body || m.text}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function StatCard({ label, value, accent }) {
+  return (
+    <div style={styles.panel}>
+      <div style={{ ...styles.statBar, background: accent }} />
+      <div style={styles.statLabel}>{label}</div>
+      <div style={styles.statValue}>{value}</div>
+    </div>
+  );
+}
+
+function Detail({ label, value }) {
+  return (
+    <div>
+      <div style={styles.detailLabel}>{label}</div>
+      <div style={styles.detailValue}>{value || "—"}</div>
+    </div>
+  );
+}
+
+function EmptyState({ text }) {
+  return <div style={styles.empty}>{text}</div>;
+}
+
+function StatusPill({ status }) {
+  const s = (status || "").toLowerCase();
+  const map = {
+    present: { bg: "rgba(62,207,142,0.15)", color: COLORS.accent },
+    absent: { bg: "rgba(239,90,111,0.15)", color: COLORS.danger },
+    late: { bg: "rgba(245,166,35,0.15)", color: COLORS.warn },
+  };
+  const style = map[s] || { bg: "rgba(139,151,176,0.15)", color: COLORS.textDim };
+  return (
+    <span
+      style={{
+        padding: "4px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 600,
+        textTransform: "capitalize",
+        background: style.bg,
+        color: style.color,
+      }}
+    >
+      {status || "—"}
+    </span>
+  );
+}
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: COLORS.bg,
+    color: COLORS.text,
+    display: "flex",
+    fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
+  },
+  sidebar: {
+    width: 240,
+    background: COLORS.panel,
+    borderRight: `1px solid ${COLORS.border}`,
+    display: "flex",
+    flexDirection: "column",
+    padding: "28px 20px",
+    gap: 32,
+  },
+  brand: { display: "flex", alignItems: "center", gap: 12 },
+  brandMark: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    background: COLORS.accentSoft,
+    color: COLORS.accent,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 700,
+    fontSize: 14,
+  },
+  brandTitle: { fontSize: 14, fontWeight: 700 },
+  brandSub: { fontSize: 12, color: COLORS.textDim },
+  nav: { display: "flex", flexDirection: "column", gap: 6, flex: 1 },
+  navItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    textAlign: "left",
+    padding: "11px 14px",
+    borderRadius: 10,
+    border: "none",
+    background: "transparent",
+    color: COLORS.textDim,
+    fontSize: 14,
+    cursor: "pointer",
+  },
+  navItemActive: {
+    background: COLORS.accentSoft,
+    color: COLORS.accent,
+    fontWeight: 600,
+  },
+  navBadge: {
+    background: COLORS.danger,
+    color: "#fff",
+    fontSize: 11,
+    padding: "1px 7px",
+    borderRadius: 999,
+  },
+  logoutBtn: {
+    padding: "11px 14px",
+    borderRadius: 10,
+    border: `1px solid ${COLORS.border}`,
+    background: "transparent",
+    color: COLORS.textDim,
+    fontSize: 13,
+    cursor: "pointer",
+  },
+  main: { flex: 1, padding: "36px 44px", overflowY: "auto" },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: 28,
+  },
+  eyebrow: {
+    fontSize: 12,
+    letterSpacing: 1.5,
+    color: COLORS.textDim,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  h1: { fontSize: 28, margin: 0, fontWeight: 700 },
+  classPill: {
+    padding: "8px 16px",
+    borderRadius: 999,
+    background: COLORS.panelSoft,
+    border: `1px solid ${COLORS.border}`,
+    fontSize: 13,
+    color: COLORS.textDim,
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: 18,
+  },
+  paymentSummaryRow: {
+    display: "flex",
+    gap: 16,
+    marginBottom: 20,
+  },
+  paymentSummaryCard: {
+    background: COLORS.panelSoft,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: 12,
+    padding: 16,
+    flex: 1,
+  },
+  panel: {
+    background: COLORS.panel,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: 16,
+    padding: 22,
+    position: "relative",
+    overflow: "hidden",
+  },
+  panelTitle: { fontSize: 15, fontWeight: 600, marginBottom: 16 },
+  classGroupLabel: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: COLORS.accent,
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  statBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    height: 3,
+    width: "100%",
+  },
+  statLabel: { fontSize: 13, color: COLORS.textDim, marginBottom: 8 },
+  statValue: { fontSize: 26, fontWeight: 700 },
+  detailGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 18,
+  },
+  detailLabel: { fontSize: 12, color: COLORS.textDim, marginBottom: 4 },
+  detailValue: { fontSize: 14, fontWeight: 500 },
+  table: { width: "100%", borderCollapse: "collapse" },
+  th: {
+    textAlign: "left",
+    fontSize: 12,
+    color: COLORS.textDim,
+    padding: "8px 10px",
+    borderBottom: `1px solid ${COLORS.border}`,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  td: {
+    padding: "12px 10px",
+    borderBottom: `1px solid ${COLORS.border}`,
+    fontSize: 14,
+  },
+  empty: {
+    padding: "32px 0",
+    textAlign: "center",
+    color: COLORS.textDim,
+    fontSize: 14,
+  },
+  messageCard: {
+    background: COLORS.panelSoft,
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: 12,
+    padding: 16,
+  },
+  messageTitle: { fontWeight: 600, marginBottom: 6, fontSize: 14 },
+  messageBody: { fontSize: 13, color: COLORS.textDim, lineHeight: 1.5 },
+};

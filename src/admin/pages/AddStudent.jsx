@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { db } from "../../firebase/firebase";
+import { db, storage } from "../../firebase/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   doc,
   setDoc,
@@ -96,6 +97,18 @@ export default function AddStudent() {
       const existingSnap = await getDocs(collection(db, "students"));
       const studentId = String(existingSnap.size + 1).padStart(4, "0");
 
+      let photoURL = "";
+      if (student.studentPhoto) {
+        const photoRef = ref(
+          storage,
+          `students/${studentId}/${Date.now()}_${student.studentPhoto.name}`
+        );
+
+        await uploadBytes(photoRef, student.studentPhoto);
+
+        photoURL = await getDownloadURL(photoRef);
+      }
+
       await setDoc(doc(db, "students", studentId), {
         studentId,
         fullName: student.fullName,
@@ -107,6 +120,7 @@ export default function AddStudent() {
         previousSchool: student.previousSchool,
         orphanStatus: student.orphanStatus,
         parentPassword: student.parentPassword,
+        studentPhoto: photoURL,
         createdAt: new Date(),
       });
 

@@ -10,55 +10,72 @@ export default function DashboardCard({
   return (
     <div
       style={{
-        background: "#0F172A",
-        border: `1px solid ${color}55`,
+        background: "linear-gradient(160deg,#151233,#181341)",
+        border: `1px solid ${color}33`,
         borderRadius: 22,
-        padding: 24,
+        padding: 26,
         color: "#fff",
         position: "relative",
         overflow: "hidden",
-        minHeight: 220,
-        boxShadow: `0 0 25px ${color}22`,
+        minHeight: 200,
+        boxShadow: `0 10px 30px rgba(0,0,0,0.25)`,
       }}
     >
+      {/* Ambient glow */}
+      <div
+        style={{
+          position: "absolute",
+          top: -40,
+          right: -40,
+          width: 140,
+          height: 140,
+          borderRadius: "50%",
+          background: `${color}18`,
+          filter: "blur(10px)",
+        }}
+      />
+
       {/* Top */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          position: "relative",
         }}
       >
         <div
           style={{
-            width: 70,
-            height: 70,
-            borderRadius: "50%",
-            background: `${color}22`,
-            border: `2px solid ${color}`,
+            width: 58,
+            height: 58,
+            borderRadius: 16,
+            background: `${color}1f`,
+            border: `1.5px solid ${color}55`,
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            fontSize: 34,
+            fontSize: 26,
           }}
         >
           {icon}
         </div>
 
-        <MoreVertical size={22} color="#fff" />
+        <MoreVertical size={20} color="#8b87ad" />
       </div>
 
       {/* Number */}
       <div
         style={{
-          marginTop: 18,
+          marginTop: 20,
+          position: "relative",
         }}
       >
         <h1
           style={{
             margin: 0,
-            fontSize: 58,
-            fontWeight: "bold",
+            fontSize: 44,
+            fontWeight: 800,
+            letterSpacing: -1,
           }}
         >
           {value}
@@ -66,9 +83,10 @@ export default function DashboardCard({
 
         <h3
           style={{
-            margin: "8px 0 0",
+            margin: "6px 0 0",
             fontWeight: 500,
-            fontSize: 28,
+            fontSize: 15,
+            color: "#8b87ad",
           }}
         >
           {title}
@@ -77,16 +95,18 @@ export default function DashboardCard({
         <p
           style={{
             color,
-            fontWeight: 600,
-            marginTop: 10,
-            fontSize: 18,
+            fontWeight: 700,
+            marginTop: 14,
+            fontSize: 13.5,
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
           }}
         >
           ↑ {percent}
           <span
             style={{
-              color: "#cbd5e1",
-              marginLeft: 6,
+              color: "#6b6890",
               fontWeight: 400,
             }}
           >
@@ -97,30 +117,31 @@ export default function DashboardCard({
 
       {/* Bottom Wave */}
       <svg
-        viewBox="0 0 400 70"
+        viewBox="0 0 400 50"
         preserveAspectRatio="none"
         style={{
           position: "absolute",
           left: 0,
           bottom: 0,
           width: "100%",
-          height: 70,
+          height: 44,
+          opacity: 0.7,
         }}
       >
         <path
           d="
-            M0,40
-            C20,10 40,10 60,40
-            S100,70 120,40
-            S160,10 180,40
-            S220,70 240,40
-            S280,10 300,40
-            S340,70 360,40
-            S390,10 400,40
+            M0,30
+            C20,10 40,10 60,30
+            S100,50 120,30
+            S160,10 180,30
+            S220,50 240,30
+            S280,10 300,30
+            S340,50 360,30
+            S390,10 400,30
           "
           fill="none"
           stroke={color}
-          strokeWidth="4"
+          strokeWidth="3"
           strokeLinecap="round"
         />
       </svg>

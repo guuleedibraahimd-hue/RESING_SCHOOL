@@ -1,32 +1,23 @@
 import Sidebar from "./Sidebar";
 import { Outlet } from "react-router-dom";
+import { theme, fontImport } from "./theme.js";
 
-export default function Layout(){
+export default function Layout() {
+  return (
+    <div style={{ display: "flex", fontFamily: theme.font.body }}>
+      <link rel="stylesheet" href={fontImport} />
+      <Sidebar />
 
-return(
-
-<div style={{display:"flex"}}>
-
-<Sidebar/>
-
-<div style={{
-
-flex:1,
-
-padding:25,
-
-background:"#f5f7fb",
-
-minHeight:"100vh"
-
-}}>
-
-<Outlet/>
-
-</div>
-
-</div>
-
-)
-
+      <div
+        style={{
+          flex: 1,
+          padding: 32,
+          background: theme.colors.surface,
+          minHeight: "100vh",
+        }}
+      >
+        <Outlet />
+      </div>
+    </div>
+  );
 }

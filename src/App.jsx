@@ -18,6 +18,11 @@ import BulkRegistration from "./admin/pages/BulkRegistration";
 import AddTeacher from "./admin/pages/AddTeacher";
 import AddCashier from "./admin/pages/AddCashier";
 import Cashiers from "./admin/pages/Cashiers";
+import Messages from "./admin/pages/Messages";
+
+// STUDENT / PARENT
+import StudentDashboard from "./student/Dashboard";
+import ParentDashboard from "./parent/Dashboard";
 
 // TEACHER
 import TeacherDashboard from "./teacher/Dashboard";
@@ -47,6 +52,9 @@ function App() {
         <Route path="/parent-login" element={<Login role="Parent" />} />
         <Route path="/cashier-login" element={<Login role="Cashier" />} />
 
+        <Route path="/student/dashboard" element={<StudentDashboard />} />
+        <Route path="/parent/dashboard" element={<ParentDashboard />} />
+
         <Route path="/admin/dashboard" element={<Dashboard />} />
         <Route path="/admin/add-student" element={<AddStudent />} />
         <Route path="/admin/bulk-registration" element={<BulkRegistration />} />
@@ -62,6 +70,7 @@ function App() {
         <Route path="/admin/exams" element={<Exams />} />
         <Route path="/admin/reports" element={<Reports />} />
         <Route path="/admin/settings" element={<Settings />} />
+        <Route path="/admin/messages" element={<Messages />} />
 
         <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
         <Route path="/teacher/attendance" element={<TeacherAttendance />} />

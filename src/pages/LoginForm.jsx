@@ -55,6 +55,8 @@ export default function LoginForm({ role }) {
             data.password === password.trim()
           ) {
             found = true;
+            localStorage.setItem("adminId", item.id);
+            localStorage.setItem("adminName", data.name || data.username || "Admin");
           }
         }
 
@@ -65,6 +67,11 @@ export default function LoginForm({ role }) {
             data.password === password.trim()
           ) {
             found = true;
+            localStorage.setItem("teacherId", item.id);
+            localStorage.setItem(
+              "teacherName",
+              data.fullName || data.name || data.username || "Teacher"
+            );
           }
         }
 
@@ -74,6 +81,8 @@ export default function LoginForm({ role }) {
             data.password === password.trim()
           ) {
             found = true;
+            localStorage.setItem("cashierId", item.id);
+            localStorage.setItem("cashierName", data.name || data.username || "Cashier");
           }
         }
 
@@ -81,9 +90,11 @@ export default function LoginForm({ role }) {
           if (
             (data.studentId === username.trim() ||
               item.id === username.trim()) &&
-            data.password === password.trim()
+            data.parentPassword === password.trim()
           ) {
             found = true;
+            localStorage.setItem("studentId", item.id);
+            localStorage.setItem("studentName", data.fullName || data.name || "Student");
           }
         }
 
@@ -94,6 +105,8 @@ export default function LoginForm({ role }) {
             data.parentPassword === password.trim()
           ) {
             found = true;
+            localStorage.setItem("studentId", item.id);
+            localStorage.setItem("parentName", data.parentName || "Parent");
           }
         }
       });

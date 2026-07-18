@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import { db } from "../firebase/firebase";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
+import { GraduationCap, Search, X, CalendarCheck2 } from "lucide-react";
+
+import Sidebar from "./Sidebar";
+import Topbar from "./Topbar";
 
 export default function Students() {
   const [classes, setClasses] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
+  const [attendanceMap, setAttendanceMap] = useState({});
 
   const [selectedClass, setSelectedClass] = useState("");
   const [searchText, setSearchText] = useState("");
@@ -14,6 +19,7 @@ export default function Students() {
   const [loading, setLoading] = useState(true);
 
   const teacherId = localStorage.getItem("teacherId") || "";
+  const teacherName = localStorage.getItem("teacherName") || "Teacher";
 
   useEffect(() => {
     loadData();
@@ -24,33 +30,98 @@ export default function Students() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedClass, searchText, allStudents]);
 
+  // Matches actual Firestore structure: teachers/{teacherId} document
+  // has a "classes" array field with { className, subject, ... } entries
   const loadData = async () => {
     try {
       setLoading(true);
 
-      const classesSnap = await getDocs(
-        query(collection(db, "classes"), where("teacherId", "==", teacherId))
+      if (!teacherId) {
+        setClasses([]);
+        setAllStudents([]);
+        return;
+      }
+
+      const teacherSnap = await getDoc(doc(db, "teachers", teacherId));
+
+      if (!teacherSnap.exists()) {
+        setClasses([]);
+        setAllStudents([]);
+        return;
+      }
+
+      const data = teacherSnap.data();
+      const teacherClasses = Array.isArray(data.classes) ? data.classes : [];
+
+      const uniqueClassNames = Array.from(
+        new Set(teacherClasses.map((c) => c.className).filter(Boolean))
       );
-      const classList = classesSnap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
+
+      const classList = uniqueClassNames.map((className) => ({
+        id: className,
+        className,
       }));
       setClasses(classList);
 
-      const classNames = classList.map((c) => c.className);
-
       let students = [];
-      if (classNames.length > 0) {
+      if (uniqueClassNames.length > 0) {
         const studentsSnap = await getDocs(
           query(
             collection(db, "students"),
-            where("className", "in", classNames.slice(0, 10))
+            where("className", "in", uniqueClassNames.slice(0, 10))
           )
         );
         students = studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
       }
-
       setAllStudents(students);
+
+      // Load all attendance records for these classes and compute per-student %
+      if (uniqueClassNames.length > 0) {
+        const attSnap = await getDocs(
+          query(
+            collection(db, "attendance"),
+            where("className", "in", uniqueClassNames.slice(0, 10))
+          )
+        );
+
+        const perStudent = {};
+
+        attSnap.docs.forEach((d) => {
+          const rec = d.data();
+          // Support two possible shapes:
+          // 1) one doc per student per day: { studentId, status: "present"|"absent" }
+          // 2) one doc per class per day with a "records" map: { records: { [studentId]: "present"|"absent" } }
+          if (rec.studentId) {
+            const sid = rec.studentId;
+            if (!perStudent[sid]) perStudent[sid] = { present: 0, total: 0 };
+            perStudent[sid].total += 1;
+            if (rec.status === "present" || rec.present === true) {
+              perStudent[sid].present += 1;
+            }
+          } else if (rec.records && typeof rec.records === "object") {
+            Object.entries(rec.records).forEach(([sid, status]) => {
+              if (!perStudent[sid]) perStudent[sid] = { present: 0, total: 0 };
+              perStudent[sid].total += 1;
+              if (status === "present" || status === true) {
+                perStudent[sid].present += 1;
+              }
+            });
+          }
+        });
+
+        const map = {};
+        Object.entries(perStudent).forEach(([sid, v]) => {
+          map[sid] = {
+            present: v.present,
+            total: v.total,
+            pct: v.total > 0 ? Math.round((v.present / v.total) * 100) : 0,
+          };
+        });
+
+        setAttendanceMap(map);
+      } else {
+        setAttendanceMap({});
+      }
     } catch (err) {
       console.log(err);
     } finally {
@@ -78,194 +149,330 @@ export default function Students() {
     setFilteredStudents(list);
   };
 
+  const attendanceColor = (pct) => {
+    if (pct >= 90) return { bg: "rgba(34,197,94,.15)", fg: "#22C55E" };
+    if (pct >= 75) return { bg: "rgba(59,130,246,.15)", fg: "#3B82F6" };
+    if (pct >= 50) return { bg: "rgba(234,179,8,.15)", fg: "#EAB308" };
+    return { bg: "rgba(239,68,68,.15)", fg: "#EF4444" };
+  };
+
   return (
-    <div style={{ padding: 30, fontFamily: "sans-serif" }}>
-      <h1 style={{ color: "#1f7a3f" }}>My Students</h1>
+    <div style={{ display: "flex", minHeight: "100vh", background: "#05070D" }}>
+      <Sidebar teacherName={teacherName} />
 
-      <div style={filtersRow}>
-        <div>
-          <label style={label}>Class</label>
-          <select
-            style={input}
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
-          >
-            <option value="">All Classes</option>
-            {classes.map((c) => (
-              <option key={c.id} value={c.className}>
-                {c.className}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <Topbar teacherName={teacherName} />
 
-        <div style={{ flex: 1, minWidth: 220 }}>
-          <label style={label}>Search</label>
-          <input
-            style={input}
-            placeholder="Search by name or phone..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-          />
-        </div>
-      </div>
+        <div style={{ padding: "0 20px 30px" }}>
+          {/* Filters */}
+          <div style={filterCard}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+              <div style={iconCircle}>
+                <GraduationCap size={20} color="#8B5CF6" />
+              </div>
+              <h3 style={{ margin: 0, color: "#fff" }}>My Students</h3>
+            </div>
 
-      {loading ? (
-        <p>Loading students...</p>
-      ) : filteredStudents.length === 0 ? (
-        <p style={{ color: "#777" }}>No students found.</p>
-      ) : (
-        <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
-          <table style={{ ...table, flex: 2 }}>
-            <thead>
-              <tr>
-                <th style={th}>Name</th>
-                <th style={th}>Class</th>
-                <th style={th}>Student Phone</th>
-                <th style={th}>Parent Phone</th>
-                <th style={th}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredStudents.map((s) => (
-                <tr key={s.id}>
-                  <td style={td}>{s.fullName}</td>
-                  <td style={td}>{s.className}</td>
-                  <td style={td}>{s.studentPhone || "-"}</td>
-                  <td style={td}>{s.parentPhone || "-"}</td>
-                  <td style={td}>
-                    <button
-                      style={btnSecondary}
-                      onClick={() => setSelectedStudent(s)}
-                    >
-                      View Profile
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {selectedStudent && (
-            <div style={profileCard}>
-              <button
-                style={closeBtn}
-                onClick={() => setSelectedStudent(null)}
-              >
-                ✕
-              </button>
-
-              <div style={profilePhotoWrap}>
-                {selectedStudent.studentPhoto ? (
-                  <img
-                    src={selectedStudent.studentPhoto}
-                    alt={selectedStudent.fullName}
-                    style={profilePhoto}
-                  />
-                ) : (
-                  <div style={profilePlaceholder}>
-                    {(selectedStudent.fullName || "?").charAt(0).toUpperCase()}
-                  </div>
+            <div style={filtersGrid}>
+              <div>
+                <label style={label}>Class</label>
+                <select
+                  style={input}
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                >
+                  <option value="">All Classes</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.className}>
+                      {c.className}
+                    </option>
+                  ))}
+                </select>
+                {classes.length === 0 && (
+                  <p style={{ color: "#F59E0B", fontSize: 12, marginTop: 6 }}>
+                    Ma jiraan classes la helay teacher-kan.
+                  </p>
                 )}
               </div>
 
-              <h3 style={{ textAlign: "center", marginBottom: 4 }}>
-                {selectedStudent.fullName}
-              </h3>
-              <p style={{ textAlign: "center", color: "#777", marginTop: 0 }}>
-                {selectedStudent.className}
-              </p>
+              <div>
+                <label style={label}>Search</label>
+                <div style={{ position: "relative" }}>
+                  <Search
+                    size={16}
+                    color="#94A3B8"
+                    style={{ position: "absolute", left: 12, top: 12 }}
+                  />
+                  <input
+                    style={{ ...input, paddingLeft: 36 }}
+                    placeholder="Search by name or phone..."
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
 
-              <div style={profileRow}>
-                <span style={profileLabel}>Student ID</span>
-                <span>{selectedStudent.studentId || "-"}</span>
+          {/* Table + profile */}
+          {loading ? (
+            <div style={tableCard}>
+              <p style={{ padding: 20, color: "#94A3B8" }}>Loading students...</p>
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div style={tableCard}>
+              <p style={{ padding: 20, color: "#94A3B8" }}>No students found.</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
+              <div style={{ ...tableCard, flex: 2, minWidth: 320 }}>
+                <table style={table}>
+                  <thead>
+                    <tr>
+                      <th style={th}>Name</th>
+                      <th style={th}>Class</th>
+                      <th style={th}>Student Phone</th>
+                      <th style={th}>Parent Phone</th>
+                      <th style={th}>Attendance %</th>
+                      <th style={th}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredStudents.map((s) => {
+                      const att = attendanceMap[s.id];
+                      const pct = att ? att.pct : 0;
+                      const ac = attendanceColor(pct);
+                      return (
+                        <tr key={s.id}>
+                          <td style={{ ...td, display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={avatar}>
+                              {(s.fullName || "?").charAt(0).toUpperCase()}
+                            </div>
+                            {s.fullName}
+                          </td>
+                          <td style={td}>{s.className}</td>
+                          <td style={td}>{s.studentPhone || "-"}</td>
+                          <td style={td}>{s.parentPhone || "-"}</td>
+                          <td style={td}>
+                            {att ? (
+                              <span
+                                style={{
+                                  background: ac.bg,
+                                  color: ac.fg,
+                                  padding: "4px 12px",
+                                  borderRadius: 20,
+                                  fontWeight: 700,
+                                  fontSize: 13,
+                                }}
+                              >
+                                {pct}% ({att.present}/{att.total})
+                              </span>
+                            ) : (
+                              <span style={{ color: "#94A3B8", fontSize: 13 }}>No data</span>
+                            )}
+                          </td>
+                          <td style={td}>
+                            <button
+                              style={btnSecondary}
+                              onClick={() => setSelectedStudent(s)}
+                            >
+                              View Profile
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <div style={profileRow}>
-                <span style={profileLabel}>Student Phone</span>
-                <span>{selectedStudent.studentPhone || "-"}</span>
-              </div>
-              <div style={profileRow}>
-                <span style={profileLabel}>Parent Phone</span>
-                <span>{selectedStudent.parentPhone || "-"}</span>
-              </div>
-              <div style={profileRow}>
-                <span style={profileLabel}>District</span>
-                <span>{selectedStudent.district || "-"}</span>
-              </div>
-              <div style={profileRow}>
-                <span style={profileLabel}>Previous School</span>
-                <span>{selectedStudent.previousSchool || "-"}</span>
-              </div>
-              <div style={profileRow}>
-                <span style={profileLabel}>Orphan Status</span>
-                <span>{selectedStudent.orphanStatus || "-"}</span>
-              </div>
-              <div style={profileRow}>
-                <span style={profileLabel}>Monthly Fee</span>
-                <span>{selectedStudent.monthlyFee || "-"}</span>
-              </div>
+
+              {selectedStudent && (
+                <div style={profileCard}>
+                  <button style={closeBtn} onClick={() => setSelectedStudent(null)}>
+                    <X size={16} />
+                  </button>
+
+                  <div style={profilePhotoWrap}>
+                    {selectedStudent.studentPhoto ? (
+                      <img
+                        src={selectedStudent.studentPhoto}
+                        alt={selectedStudent.fullName}
+                        style={profilePhoto}
+                      />
+                    ) : (
+                      <div style={profilePlaceholder}>
+                        {(selectedStudent.fullName || "?").charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+
+                  <h3 style={{ textAlign: "center", marginBottom: 4, color: "#fff" }}>
+                    {selectedStudent.fullName}
+                  </h3>
+                  <p style={{ textAlign: "center", color: "#94A3B8", marginTop: 0 }}>
+                    {selectedStudent.className}
+                  </p>
+
+                  {attendanceMap[selectedStudent.id] && (
+                    <div style={attSummary}>
+                      <CalendarCheck2 size={18} color="#8B5CF6" />
+                      <div>
+                        <div style={{ color: "#fff", fontWeight: 700, fontSize: 15 }}>
+                          {attendanceMap[selectedStudent.id].pct}% Joogitaan
+                        </div>
+                        <div style={{ color: "#94A3B8", fontSize: 12 }}>
+                          {attendanceMap[selectedStudent.id].present} /{" "}
+                          {attendanceMap[selectedStudent.id].total} maalmood
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={profileRow}>
+                    <span style={profileLabel}>Student ID</span>
+                    <span style={{ color: "#fff" }}>{selectedStudent.studentId || "-"}</span>
+                  </div>
+                  <div style={profileRow}>
+                    <span style={profileLabel}>Student Phone</span>
+                    <span style={{ color: "#fff" }}>{selectedStudent.studentPhone || "-"}</span>
+                  </div>
+                  <div style={profileRow}>
+                    <span style={profileLabel}>Parent Phone</span>
+                    <span style={{ color: "#fff" }}>{selectedStudent.parentPhone || "-"}</span>
+                  </div>
+                  <div style={profileRow}>
+                    <span style={profileLabel}>District</span>
+                    <span style={{ color: "#fff" }}>{selectedStudent.district || "-"}</span>
+                  </div>
+                  <div style={profileRow}>
+                    <span style={profileLabel}>Previous School</span>
+                    <span style={{ color: "#fff" }}>
+                      {selectedStudent.previousSchool || "-"}
+                    </span>
+                  </div>
+                  <div style={profileRow}>
+                    <span style={profileLabel}>Orphan Status</span>
+                    <span style={{ color: "#fff" }}>{selectedStudent.orphanStatus || "-"}</span>
+                  </div>
+                  <div style={profileRow}>
+                    <span style={profileLabel}>Monthly Fee</span>
+                    <span style={{ color: "#fff" }}>{selectedStudent.monthlyFee || "-"}</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
-const filtersRow = {
+const filterCard = {
+  background: "#0B1120",
+  border: "1px solid rgba(255,255,255,.06)",
+  borderRadius: 20,
+  padding: 20,
+  marginBottom: 20,
+};
+const iconCircle = {
+  width: 40,
+  height: 40,
+  borderRadius: "50%",
+  background: "rgba(139,92,246,0.15)",
   display: "flex",
-  gap: 20,
-  marginBottom: 24,
-  flexWrap: "wrap",
+  alignItems: "center",
+  justifyContent: "center",
+  flexShrink: 0,
+};
+const filtersGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 16,
 };
 const label = {
   display: "block",
   fontWeight: "bold",
   marginBottom: 6,
+  fontSize: 13,
+  color: "#94A3B8",
 };
 const input = {
   width: "100%",
   padding: "10px 12px",
   boxSizing: "border-box",
-  border: "1px solid #ccc",
-  borderRadius: 6,
-  minWidth: 180,
+  border: "1px solid rgba(255,255,255,.1)",
+  borderRadius: 10,
+  background: "#111827",
+  color: "#fff",
+};
+const tableCard = {
+  background: "#0B1120",
+  border: "1px solid rgba(255,255,255,.06)",
+  borderRadius: 20,
+  overflow: "hidden",
 };
 const table = {
+  width: "100%",
   borderCollapse: "collapse",
 };
 const th = {
   textAlign: "left",
-  padding: "10px 8px",
-  borderBottom: "2px solid #ddd",
+  padding: "12px 20px",
+  borderBottom: "1px solid rgba(255,255,255,.08)",
+  color: "#94A3B8",
+  fontSize: 13,
 };
 const td = {
-  padding: "10px 8px",
-  borderBottom: "1px solid #eee",
+  padding: "12px 20px",
+  borderBottom: "1px solid rgba(255,255,255,.05)",
+  fontSize: 14,
+  color: "#E5E7EB",
+};
+const avatar = {
+  width: 32,
+  height: 32,
+  borderRadius: "50%",
+  background: "linear-gradient(135deg,#6D5DF0,#8B5CF6)",
+  color: "white",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontWeight: "bold",
+  fontSize: 13,
+  flexShrink: 0,
 };
 const btnSecondary = {
-  background: "#eee",
-  border: "1px solid #ccc",
-  borderRadius: 6,
-  padding: "6px 14px",
+  background: "#111827",
+  border: "1px solid rgba(255,255,255,.1)",
+  borderRadius: 10,
+  padding: "8px 16px",
   cursor: "pointer",
+  color: "#fff",
+  fontSize: 13,
 };
 const profileCard = {
   flex: 1,
   minWidth: 280,
-  background: "white",
-  borderRadius: 10,
+  background: "#0B1120",
+  border: "1px solid rgba(255,255,255,.06)",
+  borderRadius: 20,
   padding: 24,
-  boxShadow: "0 1px 6px rgba(0,0,0,0.1)",
   position: "relative",
 };
 const closeBtn = {
   position: "absolute",
-  top: 10,
-  right: 10,
-  background: "none",
-  border: "none",
-  fontSize: 16,
+  top: 14,
+  right: 14,
+  background: "#111827",
+  border: "1px solid rgba(255,255,255,.1)",
+  borderRadius: 8,
+  width: 28,
+  height: 28,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "#fff",
   cursor: "pointer",
 };
 const profilePhotoWrap = {
@@ -283,7 +490,7 @@ const profilePlaceholder = {
   width: 90,
   height: 90,
   borderRadius: "50%",
-  background: "#0d6efd",
+  background: "linear-gradient(135deg,#6D5DF0,#8B5CF6)",
   color: "white",
   display: "flex",
   alignItems: "center",
@@ -291,13 +498,23 @@ const profilePlaceholder = {
   fontSize: 32,
   fontWeight: "bold",
 };
+const attSummary = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  background: "rgba(139,92,246,0.1)",
+  border: "1px solid rgba(139,92,246,.25)",
+  borderRadius: 14,
+  padding: "10px 14px",
+  marginBottom: 14,
+};
 const profileRow = {
   display: "flex",
   justifyContent: "space-between",
   padding: "8px 0",
-  borderBottom: "1px solid #f0f0f0",
+  borderBottom: "1px solid rgba(255,255,255,.05)",
   fontSize: 14,
 };
 const profileLabel = {
-  color: "#777",
+  color: "#94A3B8",
 };

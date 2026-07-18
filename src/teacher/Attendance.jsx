@@ -8,6 +8,10 @@ import {
   setDoc,
   doc,
 } from "firebase/firestore";
+import { Users, UserCheck, UserX, Clock } from "lucide-react";
+
+import Sidebar from "./Sidebar";
+import Topbar from "./Topbar";
 
 export default function Attendance() {
   const [classes, setClasses] = useState([]);
@@ -23,6 +27,7 @@ export default function Attendance() {
   const [sessionSaved, setSessionSaved] = useState(false);
 
   const teacherId = localStorage.getItem("teacherId") || "";
+  const teacherName = localStorage.getItem("teacherName") || "Teacher";
 
   useEffect(() => {
     loadClasses();
@@ -74,11 +79,17 @@ export default function Attendance() {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setStudents(list);
 
+      // Check Firestore itself (not local state) for any attendance already
+      // saved today for this class + teacher. This is what makes the lock
+      // survive a page refresh — sessionSaved was previously just local
+      // React state, so reloading the page reset it to false and let the
+      // teacher save a duplicate session for the same day.
       const existingSnap = await getDocs(
         query(
           collection(db, "attendance"),
           where("className", "==", className),
-          where("date", "==", date)
+          where("date", "==", date),
+          where("teacherId", "==", teacherId)
         )
       );
 
@@ -89,13 +100,30 @@ export default function Attendance() {
           sessionNumbers.add(data.sessionNumber);
         }
       });
-      setExistingSessions(Array.from(sessionNumbers).sort((a, b) => a - b));
+      const sessionsArr = Array.from(sessionNumbers).sort((a, b) => a - b);
+      setExistingSessions(sessionsArr);
 
-      const initial = {};
-      list.forEach((s) => {
-        initial[s.id] = "Present";
-      });
-      setAttendance(initial);
+      const alreadySavedToday = sessionsArr.length > 0;
+      setSessionSaved(alreadySavedToday);
+
+      if (alreadySavedToday) {
+        // Show what was actually recorded instead of resetting to "Present".
+        const latestSession = Math.max(...sessionsArr);
+        const savedMap = {};
+        existingSnap.docs.forEach((d) => {
+          const data = d.data();
+          if (data.sessionNumber === latestSession) {
+            savedMap[data.studentId] = data.status;
+          }
+        });
+        setAttendance(savedMap);
+      } else {
+        const initial = {};
+        list.forEach((s) => {
+          initial[s.id] = "Present";
+        });
+        setAttendance(initial);
+      }
     } catch (err) {
       console.log(err);
     } finally {
@@ -179,207 +207,263 @@ export default function Attendance() {
   );
 
   return (
-    <div style={page}>
-      {/* Summary cards */}
-      <div style={cardsRow}>
-        <div style={{ ...card, background: "linear-gradient(135deg,#eafaf1,#ffffff)" }}>
-          <div style={{ ...iconCircle, background: "#1f9d55" }}>👥</div>
-          <div>
-            <div style={cardValue}>{totalCount}</div>
-            <div style={cardLabel}>Total Students</div>
-          </div>
-        </div>
+    <div style={{ display: "flex", minHeight: "100vh", background: "#05070D" }}>
+      <Sidebar teacherName={teacherName} />
 
-        <div style={{ ...card, background: "linear-gradient(135deg,#eafaf1,#ffffff)" }}>
-          <div style={{ ...iconCircle, background: "#1f9d55" }}>✓</div>
-          <div>
-            <div style={cardValue}>{presentCount}</div>
-            <div style={cardLabel}>Present ({presentPct}%)</div>
-          </div>
-        </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <Topbar teacherName={teacherName} />
 
-        <div style={{ ...card, background: "linear-gradient(135deg,#fdecea,#ffffff)" }}>
-          <div style={{ ...iconCircle, background: "#e74c3c" }}>✕</div>
-          <div>
-            <div style={cardValue}>{absentCount}</div>
-            <div style={cardLabel}>Absent ({absentPct}%)</div>
-          </div>
-        </div>
+        <div style={{ padding: "0 20px 30px" }}>
+          {sessionSaved && (
+            <div style={lockedBanner}>
+              🔒 Xaadirintii maalintan ({date}) waa la kaydiyay ee waa la
+              xiray. Waxaad mar kale furan kartaa maalinta soo socota.
+            </div>
+          )}
 
-        <div style={{ ...card, background: "linear-gradient(135deg,#eef6fb,#ffffff)" }}>
-          <div style={{ ...iconCircle, background: "#0d6efd" }}>🕒</div>
-          <div>
-            <div style={cardValue}>{existingSessions.length}</div>
-            <div style={cardLabel}>Xiisadaha Maanta</div>
+          {/* Summary cards */}
+          <div style={cardsRow}>
+            <div style={card}>
+              <div style={{ ...iconCircle, background: "rgba(109,93,240,0.15)" }}>
+                <Users size={20} color="#6D5DF0" />
+              </div>
+              <div>
+                <div style={cardValue}>{totalCount}</div>
+                <div style={cardLabel}>Total Students</div>
+              </div>
+            </div>
+
+            <div style={card}>
+              <div style={{ ...iconCircle, background: "rgba(34,197,94,0.15)" }}>
+                <UserCheck size={20} color="#22C55E" />
+              </div>
+              <div>
+                <div style={cardValue}>{presentCount}</div>
+                <div style={cardLabel}>Present ({presentPct}%)</div>
+              </div>
+            </div>
+
+            <div style={card}>
+              <div style={{ ...iconCircle, background: "rgba(239,68,68,0.15)" }}>
+                <UserX size={20} color="#EF4444" />
+              </div>
+              <div>
+                <div style={cardValue}>{absentCount}</div>
+                <div style={cardLabel}>Absent ({absentPct}%)</div>
+              </div>
+            </div>
+
+            <div style={card}>
+              <div style={{ ...iconCircle, background: "rgba(23,162,184,0.15)" }}>
+                <Clock size={20} color="#17A2B8" />
+              </div>
+              <div>
+                <div style={cardValue}>{existingSessions.length}</div>
+                <div style={cardLabel}>Xiisadaha Maanta</div>
+              </div>
+            </div>
           </div>
+
+          {/* Filters */}
+          <div style={filterCard}>
+            <div style={filtersRow}>
+              <div>
+                <label style={label}>Class</label>
+                <select
+                  style={input}
+                  value={selectedClass}
+                  onChange={(e) => setSelectedClass(e.target.value)}
+                >
+                  <option value="">Select Class</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.className}>
+                      {c.className}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={label}>Date</label>
+                <input
+                  type="date"
+                  style={input}
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
+
+              <div style={{ flex: 1, minWidth: 220 }}>
+                <label style={label}>Search Student</label>
+                <input
+                  style={input}
+                  placeholder="Search by name or ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+              <button
+                style={{
+                  ...btnAction,
+                  background: "#22C55E",
+                  opacity: sessionSaved ? 0.5 : 1,
+                  cursor: sessionSaved ? "not-allowed" : "pointer",
+                }}
+                onClick={() => markAll("Present")}
+                disabled={sessionSaved}
+              >
+                ✓ Mark All Present
+              </button>
+              <button
+                style={{
+                  ...btnAction,
+                  background: "#EF4444",
+                  opacity: sessionSaved ? 0.5 : 1,
+                  cursor: sessionSaved ? "not-allowed" : "pointer",
+                }}
+                onClick={() => markAll("Absent")}
+                disabled={sessionSaved}
+              >
+                ✕ Mark All Absent
+              </button>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div style={tableCard}>
+            {loading ? (
+              <p style={{ padding: 20, color: "#94A3B8" }}>Loading students...</p>
+            ) : students.length === 0 ? (
+              <p style={{ padding: 20, color: "#94A3B8" }}>
+                {selectedClass
+                  ? "No students found in this class."
+                  : "Select a class to load students."}
+              </p>
+            ) : (
+              <table style={table}>
+                <thead>
+                  <tr>
+                    <th style={th}>#</th>
+                    <th style={th}>Student Name</th>
+                    <th style={th}>Student ID</th>
+                    <th style={th}>Status</th>
+                    <th style={th}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredStudents.map((s, i) => (
+                    <tr key={s.id}>
+                      <td style={td}>{i + 1}</td>
+                      <td style={{ ...td, display: "flex", alignItems: "center", gap: 10 }}>
+                        <div
+                          style={{
+                            ...avatar,
+                            background: s.studentPhoto
+                              ? `url(${s.studentPhoto}) center/cover`
+                              : "linear-gradient(135deg,#6D5DF0,#8B5CF6)",
+                          }}
+                        >
+                          {!s.studentPhoto &&
+                            (s.fullName || "?").charAt(0).toUpperCase()}
+                        </div>
+                        {s.fullName}
+                      </td>
+                      <td style={td}>
+                        <span style={idBadge}>{s.studentId || s.id}</span>
+                      </td>
+                      <td style={td}>
+                        <span
+                          style={{
+                            ...statusBadge,
+                            background:
+                              attendance[s.id] === "Present"
+                                ? "rgba(34,197,94,0.15)"
+                                : "rgba(239,68,68,0.15)",
+                            color:
+                              attendance[s.id] === "Present" ? "#22C55E" : "#EF4444",
+                          }}
+                        >
+                          ● {attendance[s.id] || "Present"}
+                        </span>
+                      </td>
+                      <td style={td}>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            onClick={() => setStatus(s.id, "Present")}
+                            disabled={sessionSaved}
+                            title="Present"
+                            style={{
+                              ...circleBtn,
+                              background:
+                                attendance[s.id] === "Present" ? "#22C55E" : "#1F2937",
+                              color: attendance[s.id] === "Present" ? "white" : "#94A3B8",
+                              cursor: sessionSaved ? "not-allowed" : "pointer",
+                              opacity: sessionSaved ? 0.6 : 1,
+                            }}
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={() => setStatus(s.id, "Absent")}
+                            disabled={sessionSaved}
+                            title="Absent"
+                            style={{
+                              ...circleBtn,
+                              background:
+                                attendance[s.id] === "Absent" ? "#EF4444" : "#1F2937",
+                              color: attendance[s.id] === "Absent" ? "white" : "#94A3B8",
+                              cursor: sessionSaved ? "not-allowed" : "pointer",
+                              opacity: sessionSaved ? 0.6 : 1,
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {students.length > 0 && (
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
+              <button
+                onClick={saveAttendance}
+                disabled={saving || sessionSaved}
+                style={{
+                  ...btnPrimary,
+                  opacity: sessionSaved ? 0.6 : 1,
+                  cursor: sessionSaved ? "not-allowed" : "pointer",
+                }}
+              >
+                {saving
+                  ? "Saving..."
+                  : sessionSaved
+                  ? "✅ Xiisaddan waa la Kaydiyay"
+                  : "💾 Save Attendance"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Filters */}
-      <div style={filterCard}>
-        <div style={filtersRow}>
-          <div>
-            <label style={label}>Class</label>
-            <select
-              style={input}
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              disabled={sessionSaved}
-            >
-              <option value="">Select Class</option>
-              {classes.map((c) => (
-                <option key={c.id} value={c.className}>
-                  {c.className}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ flex: 1, minWidth: 220 }}>
-            <label style={label}>Search Student</label>
-            <input
-              style={input}
-              placeholder="Search by name or ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
-          <button
-            style={{ ...btnAction, background: "#1f9d55" }}
-            onClick={() => markAll("Present")}
-            disabled={sessionSaved}
-          >
-            ✓ Mark All Present
-          </button>
-          <button
-            style={{ ...btnAction, background: "#e74c3c" }}
-            onClick={() => markAll("Absent")}
-            disabled={sessionSaved}
-          >
-            ✕ Mark All Absent
-          </button>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div style={tableCard}>
-        {loading ? (
-          <p style={{ padding: 20 }}>Loading students...</p>
-        ) : students.length === 0 ? (
-          <p style={{ padding: 20, color: "#777" }}>
-            {selectedClass
-              ? "No students found in this class."
-              : "Select a class to load students."}
-          </p>
-        ) : (
-          <table style={table}>
-            <thead>
-              <tr>
-                <th style={th}>#</th>
-                <th style={th}>Student Name</th>
-                <th style={th}>Student ID</th>
-                <th style={th}>Status</th>
-                <th style={th}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredStudents.map((s, i) => (
-                <tr key={s.id}>
-                  <td style={td}>{i + 1}</td>
-                  <td style={{ ...td, display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={avatar}>
-                      {(s.fullName || "?").charAt(0).toUpperCase()}
-                    </div>
-                    {s.fullName}
-                  </td>
-                  <td style={td}>
-                    <span style={idBadge}>{s.studentId || s.id}</span>
-                  </td>
-                  <td style={td}>
-                    <span
-                      style={{
-                        ...statusBadge,
-                        background:
-                          attendance[s.id] === "Present" ? "#eafaf1" : "#fdecea",
-                        color:
-                          attendance[s.id] === "Present" ? "#1f9d55" : "#e74c3c",
-                      }}
-                    >
-                      ● {attendance[s.id] || "Present"}
-                    </span>
-                  </td>
-                  <td style={td}>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        onClick={() => setStatus(s.id, "Present")}
-                        disabled={sessionSaved}
-                        title="Present"
-                        style={{
-                          ...circleBtn,
-                          background:
-                            attendance[s.id] === "Present" ? "#1f9d55" : "#eee",
-                          color: attendance[s.id] === "Present" ? "white" : "#333",
-                          cursor: sessionSaved ? "not-allowed" : "pointer",
-                          opacity: sessionSaved ? 0.6 : 1,
-                        }}
-                      >
-                        ✓
-                      </button>
-                      <button
-                        onClick={() => setStatus(s.id, "Absent")}
-                        disabled={sessionSaved}
-                        title="Absent"
-                        style={{
-                          ...circleBtn,
-                          background:
-                            attendance[s.id] === "Absent" ? "#e74c3c" : "#eee",
-                          color: attendance[s.id] === "Absent" ? "white" : "#333",
-                          cursor: sessionSaved ? "not-allowed" : "pointer",
-                          opacity: sessionSaved ? 0.6 : 1,
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {students.length > 0 && (
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
-          <button
-            onClick={saveAttendance}
-            disabled={saving || sessionSaved}
-            style={{
-              ...btnPrimary,
-              opacity: sessionSaved ? 0.6 : 1,
-              cursor: sessionSaved ? "not-allowed" : "pointer",
-            }}
-          >
-            {saving
-              ? "Saving..."
-              : sessionSaved
-              ? "✅ Xiisaddan waa la Kaydiyay"
-              : "💾 Save Attendance"}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
 
-const page = {
-  padding: 30,
-  fontFamily: "sans-serif",
-  background: "#f4f7fb",
-  minHeight: "100vh",
+const lockedBanner = {
+  background: "rgba(239,68,68,0.12)",
+  border: "1px solid rgba(239,68,68,0.3)",
+  color: "#FCA5A5",
+  padding: "12px 16px",
+  borderRadius: 12,
+  marginBottom: 20,
+  fontSize: 14,
+  fontWeight: "bold",
 };
 const cardsRow = {
   display: "grid",
@@ -388,39 +472,38 @@ const cardsRow = {
   marginBottom: 24,
 };
 const card = {
-  borderRadius: 12,
+  background: "#0B1120",
+  border: "1px solid rgba(255,255,255,.06)",
+  borderRadius: 20,
   padding: 20,
   display: "flex",
   alignItems: "center",
   gap: 16,
-  boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
 };
 const iconCircle = {
   width: 48,
   height: 48,
   borderRadius: "50%",
-  color: "white",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  fontSize: 20,
   flexShrink: 0,
 };
 const cardValue = {
   fontSize: 26,
   fontWeight: "bold",
-  color: "#222",
+  color: "#fff",
 };
 const cardLabel = {
-  color: "#777",
+  color: "#94A3B8",
   fontSize: 13,
 };
 const filterCard = {
-  background: "white",
-  borderRadius: 12,
+  background: "#0B1120",
+  border: "1px solid rgba(255,255,255,.06)",
+  borderRadius: 20,
   padding: 20,
   marginBottom: 20,
-  boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
 };
 const filtersRow = {
   display: "flex",
@@ -432,29 +515,30 @@ const label = {
   fontWeight: "bold",
   marginBottom: 6,
   fontSize: 13,
-  color: "#444",
+  color: "#94A3B8",
 };
 const input = {
   padding: "10px 12px",
-  border: "1px solid #ccc",
-  borderRadius: 6,
+  border: "1px solid rgba(255,255,255,.1)",
+  borderRadius: 10,
   minWidth: 200,
   width: "100%",
   boxSizing: "border-box",
+  background: "#111827",
+  color: "#fff",
 };
 const btnAction = {
   color: "white",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 10,
   padding: "10px 18px",
-  cursor: "pointer",
   fontWeight: "bold",
   fontSize: 14,
 };
 const tableCard = {
-  background: "white",
-  borderRadius: 12,
-  boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+  background: "#0B1120",
+  border: "1px solid rgba(255,255,255,.06)",
+  borderRadius: 20,
   overflowX: "auto",
 };
 const table = {
@@ -464,20 +548,21 @@ const table = {
 const th = {
   textAlign: "left",
   padding: "14px 16px",
-  borderBottom: "2px solid #eee",
-  color: "#555",
+  borderBottom: "1px solid rgba(255,255,255,.08)",
+  color: "#94A3B8",
   fontSize: 13,
 };
 const td = {
   padding: "14px 16px",
-  borderBottom: "1px solid #f2f2f2",
+  borderBottom: "1px solid rgba(255,255,255,.05)",
   fontSize: 14,
+  color: "#E5E7EB",
 };
 const avatar = {
   width: 32,
   height: 32,
   borderRadius: "50%",
-  background: "#0d6efd",
+  background: "linear-gradient(135deg,#6D5DF0,#8B5CF6)",
   color: "white",
   display: "flex",
   alignItems: "center",
@@ -486,8 +571,8 @@ const avatar = {
   fontSize: 13,
 };
 const idBadge = {
-  background: "#eafaf1",
-  color: "#1f9d55",
+  background: "rgba(109,93,240,0.15)",
+  color: "#8B5CF6",
   padding: "4px 10px",
   borderRadius: 6,
   fontSize: 13,
@@ -507,10 +592,10 @@ const circleBtn = {
   fontWeight: "bold",
 };
 const btnPrimary = {
-  background: "#1f9d55",
+  background: "linear-gradient(90deg,#6D5DF0,#8B5CF6)",
   color: "white",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 10,
   padding: "14px 28px",
   fontWeight: "bold",
   fontSize: 15,

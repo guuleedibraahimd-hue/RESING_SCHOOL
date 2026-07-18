@@ -2,6 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../firebase/firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
+import {
+  GraduationCap,
+  Users,
+  UserCheck,
+  UserX,
+  CalendarCheck2,
+  FileEdit,
+  BarChart3,
+  School,
+} from "lucide-react";
+
+import Sidebar from "./Sidebar";
+import Topbar from "./Topbar";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -59,100 +72,140 @@ export default function Dashboard() {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("teacherId");
-    localStorage.removeItem("teacherName");
-    navigate("/login/teacher");
-  };
+  const statCards = [
+    {
+      label: "My Classes",
+      value: classes.length,
+      icon: School,
+      ring: "#6D5DF0",
+      bg: "rgba(109,93,240,0.15)",
+    },
+    {
+      label: "Total Students",
+      value: totalStudents,
+      icon: GraduationCap,
+      ring: "#22C55E",
+      bg: "rgba(34,197,94,0.15)",
+    },
+    {
+      label: "Present Today",
+      value: presentToday,
+      icon: UserCheck,
+      ring: "#17A2B8",
+      bg: "rgba(23,162,184,0.15)",
+    },
+    {
+      label: "Absent Today",
+      value: absentToday,
+      icon: UserX,
+      ring: "#EF4444",
+      bg: "rgba(239,68,68,0.15)",
+    },
+  ];
+
+  const quickActions = [
+    { label: "Mark Attendance", icon: CalendarCheck2, path: "/teacher/attendance" },
+    { label: "Create Exam", icon: FileEdit, path: "/teacher/exams" },
+    { label: "View Results", icon: BarChart3, path: "/teacher/results" },
+    { label: "View Students", icon: Users, path: "/teacher/students" },
+  ];
 
   return (
-    <div style={styles.wrapper}>
-      {/* Sidebar */}
-      <div style={styles.sidebar}>
-        <h2 style={styles.logo}>🏫 Teacher Panel</h2>
+    <div style={{ display: "flex", minHeight: "100vh", background: "#05070D" }}>
+      <Sidebar teacherName={teacherName} />
 
-        <div style={styles.navLink} onClick={() => navigate("/teacher/dashboard")}>
-          📊 Dashboard
-        </div>
-        <div style={styles.navLink} onClick={() => navigate("/teacher/attendance")}>
-          🗓️ Attendance
-        </div>
-        <div style={styles.navLink} onClick={() => navigate("/teacher/exams")}>
-          📝 Exams
-        </div>
-        <div style={styles.navLink} onClick={() => navigate("/teacher/results")}>
-          📈 Results
-        </div>
-        <div style={styles.navLink} onClick={() => navigate("/teacher/students")}>
-          🎓 Students
-        </div>
-        <div style={styles.navLink} onClick={() => navigate("/teacher/profile")}>
-          👤 Profile
-        </div>
-
-        <div style={{ flex: 1 }} />
-
-        <div style={styles.logoutBtn} onClick={logout}>
-          🚪 Logout
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div style={styles.main}>
-        {/* Topbar */}
-        <div style={styles.topbar}>
-          <h2 style={{ margin: 0 }}>Welcome, {teacherName}</h2>
-          <div
-            style={styles.avatar}
-            onClick={() => navigate("/teacher/profile")}
-            title="Profile"
-          >
-            {teacherName.charAt(0).toUpperCase()}
-          </div>
-        </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <Topbar teacherName={teacherName} />
 
         {loading ? (
-          <p style={{ padding: 30 }}>Loading dashboard...</p>
+          <p style={{ padding: 30, color: "#94A3B8" }}>Loading dashboard...</p>
         ) : (
-          <div style={{ padding: 30 }}>
-            {/* Dashboard Cards */}
-            <div style={styles.cardsRow}>
-              <div style={{ ...styles.card, borderLeft: "6px solid #0d6efd" }}>
-                <h3 style={styles.cardValue}>{classes.length}</h3>
-                <p style={styles.cardLabel}>My Classes</p>
-              </div>
-
-              <div style={{ ...styles.card, borderLeft: "6px solid #1f9d55" }}>
-                <h3 style={styles.cardValue}>{totalStudents}</h3>
-                <p style={styles.cardLabel}>Total Students</p>
-              </div>
-
-              <div style={{ ...styles.card, borderLeft: "6px solid #17a2b8" }}>
-                <h3 style={styles.cardValue}>{presentToday}</h3>
-                <p style={styles.cardLabel}>Present Today</p>
-              </div>
-
-              <div style={{ ...styles.card, borderLeft: "6px solid #e74c3c" }}>
-                <h3 style={styles.cardValue}>{absentToday}</h3>
-                <p style={styles.cardLabel}>Absent Today</p>
-              </div>
+          <div style={{ padding: "0 20px 30px" }}>
+            {/* Stat Cards */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 20,
+                marginBottom: 24,
+              }}
+            >
+              {statCards.map((c) => {
+                const Icon = c.icon;
+                return (
+                  <div
+                    key={c.label}
+                    style={{
+                      background: "#0B1120",
+                      borderRadius: 20,
+                      padding: 22,
+                      border: "1px solid rgba(255,255,255,.06)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 46,
+                        height: 46,
+                        borderRadius: "50%",
+                        background: c.bg,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginBottom: 16,
+                      }}
+                    >
+                      <Icon size={22} color={c.ring} />
+                    </div>
+                    <h3 style={{ margin: 0, fontSize: 30, color: "#fff" }}>
+                      {c.value}
+                    </h3>
+                    <p style={{ margin: "4px 0 0", color: "#94A3B8" }}>
+                      {c.label}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
 
             {/* My Classes */}
-            <div style={styles.section}>
-              <h3 style={styles.sectionTitle}>My Classes</h3>
+            <div
+              style={{
+                background: "#0B1120",
+                borderRadius: 20,
+                padding: 24,
+                marginBottom: 24,
+                border: "1px solid rgba(255,255,255,.06)",
+              }}
+            >
+              <h3 style={{ marginTop: 0, color: "#fff" }}>My Classes</h3>
 
               {classes.length === 0 ? (
-                <p style={{ color: "#777" }}>No classes assigned yet.</p>
+                <p style={{ color: "#94A3B8" }}>No classes assigned yet.</p>
               ) : (
-                <div style={styles.classGrid}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                    gap: 16,
+                  }}
+                >
                   {classes.map((c) => (
-                    <div key={c.id} style={styles.classCard}>
-                      <h4 style={{ margin: "0 0 6px 0" }}>{c.className}</h4>
-                      <p style={{ margin: 0, color: "#666" }}>
+                    <div
+                      key={c.id}
+                      style={{
+                        border: "1px solid rgba(255,255,255,.08)",
+                        borderRadius: 15,
+                        padding: 16,
+                        background: "#111827",
+                      }}
+                    >
+                      <h4 style={{ margin: "0 0 6px 0", color: "#fff" }}>
+                        {c.className}
+                      </h4>
+                      <p style={{ margin: 0, color: "#94A3B8" }}>
                         Section: {c.section || "-"}
                       </p>
-                      <p style={{ margin: 0, color: "#666" }}>
+                      <p style={{ margin: 0, color: "#94A3B8" }}>
                         Students: {c.studentCount || 0}
                       </p>
                     </div>
@@ -162,22 +215,34 @@ export default function Dashboard() {
             </div>
 
             {/* Today's Attendance */}
-            <div style={styles.section}>
-              <h3 style={styles.sectionTitle}>Today's Attendance</h3>
-              <div style={styles.attendanceBar}>
-                <div style={styles.attendanceStat}>
-                  <span style={{ color: "#1f9d55", fontWeight: "bold" }}>
-                    Present: {presentToday}
-                  </span>
-                </div>
-                <div style={styles.attendanceStat}>
-                  <span style={{ color: "#e74c3c", fontWeight: "bold" }}>
-                    Absent: {absentToday}
-                  </span>
-                </div>
+            <div
+              style={{
+                background: "#0B1120",
+                borderRadius: 20,
+                padding: 24,
+                marginBottom: 24,
+                border: "1px solid rgba(255,255,255,.06)",
+              }}
+            >
+              <h3 style={{ marginTop: 0, color: "#fff" }}>Today's Attendance</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+                <span style={{ color: "#22C55E", fontWeight: "bold" }}>
+                  Present: {presentToday}
+                </span>
+                <span style={{ color: "#EF4444", fontWeight: "bold" }}>
+                  Absent: {absentToday}
+                </span>
                 <button
-                  style={styles.linkBtn}
                   onClick={() => navigate("/teacher/attendance")}
+                  style={{
+                    marginLeft: "auto",
+                    background: "none",
+                    border: "none",
+                    color: "#8B5CF6",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    fontWeight: "bold",
+                  }}
                 >
                   Take / Update Attendance →
                 </button>
@@ -185,33 +250,41 @@ export default function Dashboard() {
             </div>
 
             {/* Quick Actions */}
-            <div style={styles.section}>
-              <h3 style={styles.sectionTitle}>Quick Actions</h3>
-              <div style={styles.quickActions}>
-                <button
-                  style={styles.quickBtn}
-                  onClick={() => navigate("/teacher/attendance")}
-                >
-                  🗓️ Mark Attendance
-                </button>
-                <button
-                  style={styles.quickBtn}
-                  onClick={() => navigate("/teacher/exams")}
-                >
-                  📝 Create Exam
-                </button>
-                <button
-                  style={styles.quickBtn}
-                  onClick={() => navigate("/teacher/results")}
-                >
-                  📈 View Results
-                </button>
-                <button
-                  style={styles.quickBtn}
-                  onClick={() => navigate("/teacher/students")}
-                >
-                  🎓 View Students
-                </button>
+            <div
+              style={{
+                background: "#0B1120",
+                borderRadius: 20,
+                padding: 24,
+                border: "1px solid rgba(255,255,255,.06)",
+              }}
+            >
+              <h3 style={{ marginTop: 0, color: "#fff" }}>Quick Actions</h3>
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                {quickActions.map((a) => {
+                  const Icon = a.icon;
+                  return (
+                    <button
+                      key={a.label}
+                      onClick={() => navigate(a.path)}
+                      style={{
+                        background: "linear-gradient(90deg,#6D5DF0,#8B5CF6)",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 15,
+                        padding: "14px 22px",
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                        fontSize: 14,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                      }}
+                    >
+                      <Icon size={18} />
+                      {a.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -220,137 +293,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
-const styles = {
-  wrapper: {
-    display: "flex",
-    minHeight: "100vh",
-    fontFamily: "sans-serif",
-    background: "#f4f7fb",
-  },
-  sidebar: {
-    width: 230,
-    background: "#101c30",
-    color: "white",
-    display: "flex",
-    flexDirection: "column",
-    padding: "20px 0",
-  },
-  logo: {
-    padding: "0 20px",
-    marginBottom: 30,
-    fontSize: 18,
-  },
-  navLink: {
-    padding: "12px 20px",
-    cursor: "pointer",
-    fontSize: 15,
-    borderLeft: "3px solid transparent",
-  },
-  logoutBtn: {
-    padding: "12px 20px",
-    cursor: "pointer",
-    color: "#ff6b6b",
-    borderTop: "1px solid #223148",
-    marginTop: 10,
-  },
-  main: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-  },
-  topbar: {
-    height: 70,
-    background: "white",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0 30px",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-  },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: "50%",
-    background: "#0d6efd",
-    color: "white",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: "bold",
-    cursor: "pointer",
-  },
-  cardsRow: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: 20,
-    marginBottom: 30,
-  },
-  card: {
-    background: "white",
-    borderRadius: 10,
-    padding: "20px 24px",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-  },
-  cardValue: {
-    margin: 0,
-    fontSize: 28,
-  },
-  cardLabel: {
-    margin: 0,
-    color: "#777",
-  },
-  section: {
-    background: "white",
-    borderRadius: 10,
-    padding: 24,
-    marginBottom: 24,
-    boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-  },
-  sectionTitle: {
-    marginTop: 0,
-  },
-  classGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-    gap: 16,
-  },
-  classCard: {
-    border: "1px solid #eee",
-    borderRadius: 8,
-    padding: 16,
-    background: "#fafbfc",
-  },
-  attendanceBar: {
-    display: "flex",
-    alignItems: "center",
-    gap: 24,
-  },
-  attendanceStat: {
-    fontSize: 16,
-  },
-  linkBtn: {
-    marginLeft: "auto",
-    background: "none",
-    border: "none",
-    color: "#0d6efd",
-    cursor: "pointer",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  quickActions: {
-    display: "flex",
-    gap: 16,
-    flexWrap: "wrap",
-  },
-  quickBtn: {
-    background: "#0d6efd",
-    color: "white",
-    border: "none",
-    borderRadius: 8,
-    padding: "14px 20px",
-    cursor: "pointer",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-};

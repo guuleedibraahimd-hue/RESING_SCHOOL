@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { db } from "../../firebase/firebase";
+import { db, storage } from "../../firebase/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   doc,
   setDoc,
@@ -46,6 +47,8 @@ export default function BulkRegistration() {
     setStudents([...students, emptyRow()]);
   };
 
+  // Kaliya field-ka ugu dambeeya (Student Photo) ayaa row cusub keeni kara
+  // marka la taabto Enter ama Tab, sida macallinka uu isku daba wado.
   const handleLastFieldKeyDown = (index, e) => {
     const isLastRow = index === students.length - 1;
     if (!isLastRow) return;
@@ -117,6 +120,18 @@ export default function BulkRegistration() {
 
         const studentId = String(i + 1).padStart(4, "0");
 
+        let photoURL = "";
+        if (student.studentPhoto) {
+          const photoRef = ref(
+            storage,
+            `students/${studentId}/${Date.now()}_${student.studentPhoto.name}`
+          );
+
+          await uploadBytes(photoRef, student.studentPhoto);
+
+          photoURL = await getDownloadURL(photoRef);
+        }
+
         await setDoc(doc(db, "students", studentId), {
           studentId,
           fullName: student.fullName,
@@ -128,6 +143,7 @@ export default function BulkRegistration() {
           previousSchool: student.previousSchool,
           orphanStatus: student.orphanStatus,
           parentPassword: student.parentPassword,
+          studentPhoto: photoURL,
           createdAt: new Date(),
         });
 
@@ -212,7 +228,7 @@ export default function BulkRegistration() {
             style={{
               width: "100%",
               borderCollapse: "collapse",
-              minWidth: 1350,
+              minWidth: 1200,
             }}
           >
             <thead>
@@ -341,7 +357,6 @@ export default function BulkRegistration() {
                       onChange={(e) =>
                         handleChange(index, "parentPassword", e.target.value)
                       }
-                      onKeyDown={(e) => handleLastFieldKeyDown(index, e)}
                     />
                   </td>
 
@@ -352,22 +367,25 @@ export default function BulkRegistration() {
                         alignItems: "center",
                         gap: 6,
                         color: "#8b87ad",
-                        fontSize: 12.5,
+                        fontSize: 12,
                         cursor: "pointer",
                         border: "1px dashed rgba(139,108,245,0.4)",
                         borderRadius: 8,
-                        padding: "8px 10px",
+                        padding: "7px 9px",
                         whiteSpace: "nowrap",
                       }}
                     >
-                      <Upload size={14} color="#8b6cf5" />
+                      <Upload size={13} color="#8b6cf5" />
                       {student.studentPhoto ? student.studentPhoto.name.slice(0, 10) + "…" : "Upload"}
                       <input
                         type="file"
                         accept="image/*"
+                        data-row={index}
+                        data-field="studentPhoto"
                         onChange={(e) =>
                           handleFileChange(index, e.target.files[0])
                         }
+                        onKeyDown={(e) => handleLastFieldKeyDown(index, e)}
                         style={{ display: "none" }}
                       />
                     </label>
@@ -381,15 +399,15 @@ export default function BulkRegistration() {
                         color: "#f87171",
                         border: "1px solid rgba(239,68,68,0.3)",
                         borderRadius: 8,
-                        width: 32,
-                        height: 32,
+                        width: 30,
+                        height: 30,
                         display: "inline-flex",
                         alignItems: "center",
                         justifyContent: "center",
                         cursor: "pointer",
                       }}
                     >
-                      <X size={15} />
+                      <X size={14} />
                     </button>
                   </td>
                 </tr>
@@ -490,30 +508,30 @@ export default function BulkRegistration() {
 }
 
 const th = {
-  padding: "14px 12px",
+  padding: "12px 10px",
   color: "#a9a6c4",
-  fontSize: 12.5,
+  fontSize: 12,
   fontWeight: 700,
   whiteSpace: "nowrap",
   borderBottom: "1px solid rgba(139,108,245,0.2)",
 };
 
 const td = {
-  padding: "10px 12px",
+  padding: "8px 10px",
   borderBottom: "1px solid rgba(139,108,245,0.1)",
 };
 
 const input = {
   width: "100%",
-  padding: "10px 12px",
+  padding: "8px 10px",
   boxSizing: "border-box",
   border: "1.5px solid rgba(139,108,245,0.3)",
-  borderRadius: 10,
-  fontSize: 13.5,
+  borderRadius: 9,
+  fontSize: 12.5,
   color: "#e5e3f7",
   background: "rgba(255,255,255,0.02)",
   outline: "none",
-  minWidth: 130,
+  minWidth: 110,
 };
 
 const btnPrimary = {
