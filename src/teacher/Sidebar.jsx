@@ -5,13 +5,16 @@ import {
   FileEdit,
   BarChart3,
   GraduationCap,
+  Mail,
   User,
   LogOut,
 } from "lucide-react";
+import { useMessages } from "../context/MessagesContext"; // Hubi path-kan
 
 const menus = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/teacher/dashboard" },
   { name: "Attendance", icon: CalendarCheck2, path: "/teacher/attendance" },
+  { name: "Messages", icon: Mail, path: "/teacher/messages" },
   { name: "Exams", icon: FileEdit, path: "/teacher/exams" },
   { name: "Results", icon: BarChart3, path: "/teacher/results" },
   { name: "Students", icon: GraduationCap, path: "/teacher/students" },
@@ -20,6 +23,7 @@ const menus = [
 
 export default function Sidebar({ teacherName = "Teacher" }) {
   const navigate = useNavigate();
+  const { unreadCount } = useMessages();
 
   const logout = () => {
     localStorage.removeItem("teacherId");
@@ -76,6 +80,7 @@ export default function Sidebar({ teacherName = "Teacher" }) {
         <div style={{ padding: "10px 18px" }}>
           {menus.map((item) => {
             const Icon = item.icon;
+            const isMessages = item.path === "/teacher/messages";
 
             return (
               <NavLink
@@ -97,7 +102,23 @@ export default function Sidebar({ teacherName = "Teacher" }) {
                 })}
               >
                 <Icon size={20} />
-                <span>{item.name}</span>
+                <span style={{ flex: 1 }}>{item.name}</span>
+                {isMessages && unreadCount > 0 && (
+                  <span
+                    style={{
+                      background: "#EF4444",
+                      color: "#fff",
+                      borderRadius: 20,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "2px 8px",
+                      minWidth: 18,
+                      textAlign: "center",
+                    }}
+                  >
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
               </NavLink>
             );
           })}

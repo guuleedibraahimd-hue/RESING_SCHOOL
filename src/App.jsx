@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { MessagesProvider } from "./context/MessagesContext";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -31,6 +32,7 @@ import TeacherExams from "./teacher/Exams";
 import TeacherStudents from "./teacher/Students";
 import TeacherResults from "./teacher/Results";
 import TeacherProfile from "./teacher/Profile";
+import TeacherMessages from "./teacher/Messages";
 
 // CASHIER
 import CashierLayout from "./cashier/Layout";
@@ -72,12 +74,64 @@ function App() {
         <Route path="/admin/settings" element={<Settings />} />
         <Route path="/admin/messages" element={<Messages />} />
 
-        <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-        <Route path="/teacher/attendance" element={<TeacherAttendance />} />
-        <Route path="/teacher/exams" element={<TeacherExams />} />
-        <Route path="/teacher/students" element={<TeacherStudents />} />
-        <Route path="/teacher/results" element={<TeacherResults />} />
-        <Route path="/teacher/profile" element={<TeacherProfile />} />
+        {/* Dhammaan boggagga Teacher waxay ku jiraan MessagesProvider hal mar,
+            si Sidebar/Topbar/Messages ay isku wadaagaan xogta fariimaha */}
+        <Route
+          path="/teacher/dashboard"
+          element={
+            <MessagesProvider>
+              <TeacherDashboard />
+            </MessagesProvider>
+          }
+        />
+        <Route
+          path="/teacher/attendance"
+          element={
+            <MessagesProvider>
+              <TeacherAttendance />
+            </MessagesProvider>
+          }
+        />
+        <Route
+          path="/teacher/messages"
+          element={
+            <MessagesProvider>
+              <TeacherMessages />
+            </MessagesProvider>
+          }
+        />
+        <Route
+          path="/teacher/exams"
+          element={
+            <MessagesProvider>
+              <TeacherExams />
+            </MessagesProvider>
+          }
+        />
+        <Route
+          path="/teacher/students"
+          element={
+            <MessagesProvider>
+              <TeacherStudents />
+            </MessagesProvider>
+          }
+        />
+        <Route
+          path="/teacher/results"
+          element={
+            <MessagesProvider>
+              <TeacherResults />
+            </MessagesProvider>
+          }
+        />
+        <Route
+          path="/teacher/profile"
+          element={
+            <MessagesProvider>
+              <TeacherProfile />
+            </MessagesProvider>
+          }
+        />
 
         <Route path="/cashier" element={<CashierLayout />}>
           <Route index element={<CashierDashboard />} />

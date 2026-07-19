@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Search,
-  Bell,
-  Menu,
-} from "lucide-react";
+import { Search, Bell, Menu } from "lucide-react";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase/firebase";
 
@@ -33,48 +29,40 @@ export default function Topbar() {
   return (
     <div
       style={{
-        background: "linear-gradient(160deg,#151233,#181341)",
-        border: "1px solid rgba(139,108,245,0.2)",
-        borderRadius: 22,
-        padding: "22px 30px",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
         flexWrap: "wrap",
         gap: 20,
-        color: "#fff",
       }}
     >
       {/* LEFT */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 18,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <div
           style={{
-            width: 50,
-            height: 50,
-            borderRadius: 15,
+            width: 48,
+            height: 48,
+            borderRadius: 14,
             background: "linear-gradient(135deg,#6D5DF0,#8B5CF6)",
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
             cursor: "pointer",
-            boxShadow: "0 8px 20px rgba(109,93,240,0.35)",
+            color: "#fff",
+            boxShadow: "0 8px 18px rgba(109,93,240,0.3)",
+            flexShrink: 0,
           }}
         >
-          <Menu size={24} />
+          <Menu size={22} />
         </div>
 
         <div>
           <h2
             style={{
               margin: 0,
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: 800,
+              color: "#111827",
             }}
           >
             Ku Soo Dhawoow, Admin! 👋
@@ -83,7 +71,7 @@ export default function Topbar() {
           <p
             style={{
               margin: "4px 0 0",
-              color: "#8b87ad",
+              color: "#9CA3AF",
               fontSize: 13.5,
             }}
           >
@@ -93,13 +81,7 @@ export default function Topbar() {
       </div>
 
       {/* RIGHT */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <div
           style={{
             display: "flex",
@@ -108,12 +90,12 @@ export default function Topbar() {
             width: 280,
             height: 48,
             borderRadius: 30,
-            background: "rgba(255,255,255,0.03)",
-            border: "1.5px solid rgba(139,108,245,0.25)",
+            background: "#F9FAFB",
+            border: "1.5px solid rgba(17,24,39,0.08)",
             padding: "0 18px",
           }}
         >
-          <Search size={17} color="#8b87ad" />
+          <Search size={17} color="#9CA3AF" />
 
           <input
             placeholder="Search anything..."
@@ -122,7 +104,7 @@ export default function Topbar() {
               background: "transparent",
               border: "none",
               outline: "none",
-              color: "#fff",
+              color: "#111827",
               fontSize: 14,
             }}
           />
@@ -134,8 +116,8 @@ export default function Topbar() {
             width: 48,
             height: 48,
             borderRadius: "50%",
-            background: "rgba(255,255,255,0.03)",
-            border: "1.5px solid rgba(139,108,245,0.25)",
+            background: "#F9FAFB",
+            border: "1.5px solid rgba(17,24,39,0.08)",
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
@@ -143,16 +125,16 @@ export default function Topbar() {
             cursor: "pointer",
           }}
         >
-          <Bell size={19} color="#c4b8f7" />
+          <Bell size={19} color="#6D5DF0" />
 
           {unreadCount > 0 && (
             <span
               style={{
                 position: "absolute",
-                top: 6,
-                right: 6,
-                width: 17,
-                height: 17,
+                top: 4,
+                right: 4,
+                width: 18,
+                height: 18,
                 borderRadius: "50%",
                 background: "#EF4444",
                 color: "#fff",
@@ -161,7 +143,7 @@ export default function Topbar() {
                 justifyContent: "center",
                 alignItems: "center",
                 fontWeight: 700,
-                border: "2px solid #181341",
+                border: "2px solid #fff",
               }}
             >
               {unreadCount > 9 ? "9+" : unreadCount}

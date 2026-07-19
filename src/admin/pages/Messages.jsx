@@ -11,6 +11,7 @@ import {
 import { db } from "../../firebase/firebase";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
+import MessagesCard from "../components/MessagesCard";
 import {
   Bell,
   Search,
@@ -168,6 +169,11 @@ export default function Messages() {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* ---- Dir Fariin (Compose) ---- */}
+          <div style={{ marginBottom: 24 }}>
+            <MessagesCard messages={messages} />
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.6fr", gap: 20, alignItems: "start" }}>

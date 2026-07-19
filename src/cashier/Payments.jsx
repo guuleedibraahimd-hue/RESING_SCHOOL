@@ -10,7 +10,16 @@ import {
 import { db } from "../firebase/firebase";
 import { theme } from "./theme.js";
 
-const currentMonthKey = () => new Date().toISOString().slice(0, 7); // e.g. "2026-07"
+const SCHOOL_NAME = "Resing School"; // beddel magaca dugsigaaga haddii loo baahdo
+
+const currentMonthKey = () => new Date().toISOString().slice(0, 7); // "2026-07"
+
+const monthLabel = (key) => {
+  if (!key) return "—";
+  const [y, m] = key.split("-");
+  const d = new Date(Number(y), Number(m) - 1, 1);
+  return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+};
 
 export default function Payments() {
   const [students, setStudents] = useState([]);
@@ -18,6 +27,7 @@ export default function Payments() {
   const [search, setSearch] = useState("");
   const [amounts, setAmounts] = useState({});
   const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -27,17 +37,37 @@ export default function Payments() {
     try {
       setLoading(true);
 
-      const studentsSnap = await getDocs(collection(db, "cashier"));
-      const studentData = studentsSnap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
+      // Xogta ardayda saxda ah waxay ku jirtaa collection-ka "students"
+      // ee laga sameeyay Add Student / Bulk Registration.
+      const studentsSnap = await getDocs(collection(db, "students"));
+      const studentData = studentsSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        // Ka reeb xogta aan lahayn studentId ama fullName sax ah —
+        // taasi waa waxa keenayay safafka "—" ee madhan.
+        .filter(
+          (s) =>
+            s.studentId &&
+            String(s.studentId).trim() !== "" &&
+            s.fullName &&
+            String(s.fullName).trim() !== ""
+        );
+
       setStudents(studentData);
 
       const paymentsSnap = await getDocs(collection(db, "payments"));
       const paymentMap = {};
       paymentsSnap.docs.forEach((d) => {
-        paymentMap[d.id] = d.data();
+        const data = d.data();
+        const sid = data.studentId;
+        if (!sid) return;
+        // Hay boqolka ugu dambeeyay ee bishaas studentId-gan
+        if (
+          !paymentMap[sid] ||
+          (data.createdAt?.seconds || 0) >
+            (paymentMap[sid].createdAt?.seconds || 0)
+        ) {
+          paymentMap[sid] = data;
+        }
       });
       setPayments(paymentMap);
     } catch (err) {
@@ -49,10 +79,9 @@ export default function Payments() {
 
   const filtered = students.filter((s) => {
     const text = search.toLowerCase();
-
     return (
       (s.studentId || "").toLowerCase().includes(text) ||
-      (s.studentName || "").toLowerCase().includes(text) ||
+      (s.fullName || "").toLowerCase().includes(text) ||
       (s.className || "").toLowerCase().includes(text)
     );
   });
@@ -67,26 +96,35 @@ export default function Payments() {
     const entered = Number(amounts[student.id] || 0);
 
     if (entered <= 0) {
-      alert("Enter payment amount");
+      alert("Fadlan geli lacagta la bixiyay");
       return;
     }
 
     const fee = Number(student.monthlyFee || 0);
     const remaining = fee - entered;
     const status = remaining <= 0 ? "Paid" : "Not Paid";
+    const monthKey = currentMonthKey();
+
+    // Diiwaan gaar ah oo bishan iyo ardaygan u gaar ah — si aan
+    // boqol hore loo tirtirin marka mar kale la kaydiyo.
+    const paymentDocId = `${student.studentId}_${monthKey}`;
 
     try {
-      await setDoc(doc(db, "payments", student.studentId), {
+      setSavingId(student.id);
+
+      await setDoc(doc(db, "payments", paymentDocId), {
         studentId: student.studentId,
-        studentName: student.studentName,
+        studentName: student.fullName,
         className: student.className || "",
+        schoolName: SCHOOL_NAME,
         monthlyFee: fee,
         paidAmount: entered,
         remaining: remaining > 0 ? remaining : 0,
         status,
-        monthKey: currentMonthKey(),
-        studentPhone: student.studentPhone,
-        parentPhone: student.parentPhone,
+        monthKey,
+        monthLabel: monthLabel(monthKey),
+        studentPhone: student.studentPhone || "",
+        parentPhone: student.parentPhone || "",
         createdAt: serverTimestamp(),
       });
 
@@ -94,13 +132,14 @@ export default function Payments() {
         ...payments,
         [student.studentId]: {
           status,
-          monthKey: currentMonthKey(),
+          monthKey,
+          monthLabel: monthLabel(monthKey),
           paidAmount: entered,
           remaining: remaining > 0 ? remaining : 0,
+          schoolName: SCHOOL_NAME,
+          studentName: student.fullName,
         },
       });
-
-      alert("Payment Saved: " + status);
 
       setAmounts({
         ...amounts,
@@ -109,34 +148,61 @@ export default function Payments() {
     } catch (err) {
       console.log(err);
       alert(err.message);
+    } finally {
+      setSavingId(null);
     }
   };
 
   return (
     <div style={{ fontFamily: theme.font.body }}>
-      <header style={{ marginBottom: 24 }}>
-        <h1 style={styles.title}>Student Payments</h1>
-        <p style={styles.subtitle}>
-          Record and track monthly fee payments per student
-        </p>
+      <header style={styles.header}>
+        <div>
+          <h1 style={styles.title}>Student Payments</h1>
+          <p style={styles.subtitle}>
+            Diiwaan geli oo la soco lacagaha bilaha ee ardayda
+          </p>
+        </div>
+        <div style={styles.headerStats}>
+          <div style={styles.statPill}>
+            <span style={styles.statNum}>{students.length}</span>
+            <span style={styles.statLabel}>Students</span>
+          </div>
+          <div style={styles.statPill}>
+            <span style={styles.statNum}>
+              {students.filter((s) => isPaidThisMonth(s.studentId)).length}
+            </span>
+            <span style={styles.statLabel}>Paid this month</span>
+          </div>
+        </div>
       </header>
 
-      <input
-        placeholder="Search Student ID / Name / Class"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={styles.search}
-      />
+      <div style={styles.searchRow}>
+        <span style={styles.searchIcon}>🔍</span>
+        <input
+          placeholder="Search Student ID / Name / Class"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={styles.search}
+        />
+      </div>
 
       <div style={styles.tableCard}>
         {loading ? (
-          <p style={{ padding: 24, color: theme.colors.inkMuted }}>
-            Loading students...
-          </p>
+          <div style={styles.emptyState}>
+            <div style={styles.spinner} />
+            <p style={{ color: theme.colors.inkMuted, marginTop: 12 }}>
+              Loading students...
+            </p>
+          </div>
         ) : filtered.length === 0 ? (
-          <p style={{ padding: 24, color: theme.colors.inkMuted }}>
-            No students match your search.
-          </p>
+          <div style={styles.emptyState}>
+            <span style={{ fontSize: 34 }}>🗂️</span>
+            <p style={{ color: theme.colors.inkMuted, marginTop: 8 }}>
+              {students.length === 0
+                ? "Weli ma jiraan arday xog dhan leh oo diiwaan gashan."
+                : "No students match your search."}
+            </p>
+          </div>
         ) : (
           <table style={styles.table}>
             <thead>
@@ -177,6 +243,7 @@ export default function Payments() {
                   : "Not Paid";
 
                 const isPaidStatus = status === "Paid";
+                const isSaving = savingId === student.id;
 
                 return (
                   <tr
@@ -185,9 +252,11 @@ export default function Payments() {
                       background: i % 2 === 0 ? "#FFFFFF" : "#FAFCFB",
                     }}
                   >
-                    <td style={styles.td}>{student.studentId || "—"}</td>
+                    <td style={styles.td}>
+                      <span style={styles.idChip}>{student.studentId}</span>
+                    </td>
                     <td style={{ ...styles.td, fontWeight: 600 }}>
-                      {student.studentName || "—"}
+                      {student.fullName}
                     </td>
                     <td style={styles.td}>{student.className || "—"}</td>
                     <td style={styles.td}>{student.studentPhone || "—"}</td>
@@ -245,7 +314,7 @@ export default function Payments() {
                     <td style={styles.td}>
                       <button
                         onClick={() => savePayment(student)}
-                        disabled={paidThisMonth}
+                        disabled={paidThisMonth || isSaving}
                         style={{
                           ...styles.saveBtn,
                           background: paidThisMonth
@@ -254,10 +323,14 @@ export default function Payments() {
                           color: paidThisMonth
                             ? theme.colors.inkMuted
                             : "#FFFFFF",
-                          cursor: paidThisMonth ? "not-allowed" : "pointer",
+                          cursor:
+                            paidThisMonth || isSaving
+                              ? "not-allowed"
+                              : "pointer",
+                          opacity: isSaving ? 0.7 : 1,
                         }}
                       >
-                        {paidThisMonth ? "Paid" : "Save"}
+                        {paidThisMonth ? "Paid" : isSaving ? "Saving…" : "Save"}
                       </button>
                     </td>
                   </tr>
@@ -272,6 +345,14 @@ export default function Payments() {
 }
 
 const styles = {
+  header: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 16,
+    marginBottom: 24,
+  },
   title: {
     fontFamily: theme.font.display,
     fontWeight: 800,
@@ -284,16 +365,57 @@ const styles = {
     fontSize: 14,
     marginTop: 6,
   },
-  search: {
+  headerStats: {
+    display: "flex",
+    gap: 12,
+  },
+  statPill: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "10px 20px",
+    borderRadius: theme.radius.md,
+    background: theme.colors.card,
+    border: `1px solid ${theme.colors.border}`,
+    boxShadow: theme.shadow.card,
+    minWidth: 96,
+  },
+  statNum: {
+    fontFamily: theme.font.display,
+    fontWeight: 800,
+    fontSize: 20,
+    color: theme.colors.brand,
+  },
+  statLabel: {
+    fontSize: 11.5,
+    color: theme.colors.inkMuted,
+    marginTop: 2,
+    whiteSpace: "nowrap",
+  },
+  searchRow: {
+    position: "relative",
     width: 360,
-    padding: "12px 16px",
     marginBottom: 20,
+  },
+  searchIcon: {
+    position: "absolute",
+    left: 14,
+    top: "50%",
+    transform: "translateY(-50%)",
+    fontSize: 14,
+    opacity: 0.5,
+  },
+  search: {
+    width: "100%",
+    padding: "12px 16px 12px 38px",
     borderRadius: theme.radius.sm,
     border: `1px solid ${theme.colors.border}`,
     background: theme.colors.card,
     fontSize: 14,
     color: theme.colors.ink,
     outline: "none",
+    boxSizing: "border-box",
   },
   tableCard: {
     background: theme.colors.card,
@@ -301,6 +423,21 @@ const styles = {
     boxShadow: theme.shadow.card,
     border: `1px solid ${theme.colors.border}`,
     overflow: "auto",
+  },
+  emptyState: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "60px 24px",
+  },
+  spinner: {
+    width: 28,
+    height: 28,
+    borderRadius: "50%",
+    border: `3px solid ${theme.colors.border}`,
+    borderTopColor: theme.colors.mint,
+    animation: "spin 0.8s linear infinite",
   },
   table: {
     width: "100%",
@@ -322,6 +459,16 @@ const styles = {
     color: theme.colors.ink,
     borderBottom: `1px solid ${theme.colors.border}`,
     whiteSpace: "nowrap",
+  },
+  idChip: {
+    display: "inline-block",
+    padding: "3px 10px",
+    borderRadius: 999,
+    background: theme.colors.surface,
+    border: `1px solid ${theme.colors.border}`,
+    fontSize: 12,
+    fontWeight: 700,
+    color: theme.colors.brand,
   },
   money: {
     fontVariantNumeric: "tabular-nums",

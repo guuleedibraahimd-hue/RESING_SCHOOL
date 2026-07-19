@@ -11,13 +11,17 @@ import {
   FileEdit,
   BarChart3,
   School,
+  Mail,
+  MailOpen,
 } from "lucide-react";
 
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import { useMessages } from "../context/MessagesContext"; // Hubi path-kan
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { allMessages, markAsRead } = useMessages();
 
   const [teacherName, setTeacherName] = useState("Teacher");
   const [classes, setClasses] = useState([]);
@@ -34,12 +38,12 @@ export default function Dashboard() {
     try {
       setLoading(true);
 
-      const teacherId = localStorage.getItem("teacherId") || "";
+      const id = localStorage.getItem("teacherId") || "";
       const teacherNameStored = localStorage.getItem("teacherName");
       if (teacherNameStored) setTeacherName(teacherNameStored);
 
       const classesSnap = await getDocs(
-        query(collection(db, "classes"), where("teacherId", "==", teacherId))
+        query(collection(db, "classes"), where("teacherId", "==", id))
       );
       const classList = classesSnap.docs.map((d) => ({
         id: d.id,
@@ -110,6 +114,15 @@ export default function Dashboard() {
     { label: "View Students", icon: Users, path: "/teacher/students" },
   ];
 
+  const formatTime = (createdAt) => {
+    if (!createdAt) return "";
+    const d = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+    return d.toLocaleString();
+  };
+
+  // Kaliya 5-ta ugu dambeeyay ayaa Dashboard-ka lagu tusayaa
+  const recentMessages = allMessages.slice(0, 5);
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#05070D" }}>
       <Sidebar teacherName={teacherName} />
@@ -165,6 +178,90 @@ export default function Dashboard() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Fariimaha ugu dambeeyay */}
+            <div
+              style={{
+                background: "#0B1120",
+                borderRadius: 20,
+                padding: 24,
+                marginBottom: 24,
+                border: "1px solid rgba(255,255,255,.06)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 16,
+                }}
+              >
+                <h3 style={{ margin: 0, color: "#fff" }}>Fariimaha</h3>
+                <button
+                  onClick={() => navigate("/teacher/messages")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#8B5CF6",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: "bold",
+                  }}
+                >
+                  Dhammaan Fariimaha →
+                </button>
+              </div>
+
+              {recentMessages.length === 0 ? (
+                <p style={{ color: "#94A3B8" }}>Weli fariin lama helin.</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {recentMessages.map((m) => (
+                    <div
+                      key={m.id}
+                      onClick={() => {
+                        markAsRead(m);
+                        navigate("/teacher/messages");
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 12,
+                        padding: "12px 14px",
+                        borderRadius: 12,
+                        cursor: "pointer",
+                        background: m.read
+                          ? "#111827"
+                          : "rgba(139,92,246,.10)",
+                        border: m.read
+                          ? "1px solid rgba(255,255,255,.06)"
+                          : "1px solid rgba(139,92,246,.3)",
+                      }}
+                    >
+                      {m.read ? (
+                        <MailOpen size={16} color="#94A3B8" style={{ marginTop: 2 }} />
+                      ) : (
+                        <Mail size={16} color="#8B5CF6" style={{ marginTop: 2 }} />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                          <span style={{ color: "#fff", fontWeight: m.read ? 500 : 700, fontSize: 14 }}>
+                            {m.subject || "(Cinwaan la'aan)"}
+                          </span>
+                          <span style={{ color: "#64748B", fontSize: 11, flexShrink: 0 }}>
+                            {formatTime(m.createdAt)}
+                          </span>
+                        </div>
+                        <p style={{ margin: "2px 0 0", color: "#94A3B8", fontSize: 12 }}>
+                          {m.body || m.text}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* My Classes */}

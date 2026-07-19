@@ -8,6 +8,7 @@ import {
   where,
   getDocs,
   onSnapshot,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 
@@ -78,22 +79,58 @@ export default function ParentDashboard() {
           setAttendance([]);
         }
 
-        try {
-          const msgQ = query(
-            collection(db, "messages"),
-            where("audience", "in", ["all", "parents"])
-          );
-          const msgSnap = await getDocs(msgQ);
-          setMessages(msgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-        } catch (e) {
-          setMessages([]);
-        }
       } finally {
         setLoading(false);
       }
     };
 
     load();
+
+    // Live messages feed — broadcast messages for "parent" / "student" audience
+    // groups, PLUS any message sent directly to this student (recipientId).
+    // Combines two onSnapshot listeners and merges the results, newest first.
+    let unsubMsgsGroup = () => {};
+    let unsubMsgsDirect = () => {};
+    const groupMsgs = new Map();
+    const directMsgs = new Map();
+
+    const publishMessages = () => {
+      const merged = [...groupMsgs.values(), ...directMsgs.values()];
+      merged.sort((a, b) => {
+        const ta = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const tb = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return tb - ta;
+      });
+      setMessages(merged);
+    };
+
+    try {
+      const msgGroupQ = query(
+        collection(db, "messages"),
+        where("audienceGroup", "in", ["parent", "student", "broadcast"])
+      );
+      unsubMsgsGroup = onSnapshot(msgGroupQ, (snap) => {
+        groupMsgs.clear();
+        snap.docs.forEach((d) => groupMsgs.set(d.id, { id: d.id, ...d.data() }));
+        publishMessages();
+      });
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      const msgDirectQ = query(
+        collection(db, "messages"),
+        where("recipientId", "==", studentId)
+      );
+      unsubMsgsDirect = onSnapshot(msgDirectQ, (snap) => {
+        directMsgs.clear();
+        snap.docs.forEach((d) => directMsgs.set(d.id, { id: d.id, ...d.data() }));
+        publishMessages();
+      });
+    } catch (e) {
+      // ignore
+    }
 
     // Live exam results feed — updates instantly when a teacher/admin adds a result
     let unsubscribeResults = () => {};
@@ -126,6 +163,8 @@ export default function ParentDashboard() {
     return () => {
       unsubscribeResults();
       unsubscribe();
+      unsubMsgsGroup();
+      unsubMsgsDirect();
     };
   }, [studentId, navigate]);
 
@@ -133,6 +172,24 @@ export default function ParentDashboard() {
     localStorage.removeItem("studentId");
     localStorage.removeItem("parentName");
     navigate("/parent-login");
+  };
+
+  const [markingRead, setMarkingRead] = useState(false);
+  const markAllAsRead = async () => {
+    const unread = messages.filter((m) => m.read === false);
+    if (unread.length === 0) return;
+    setMarkingRead(true);
+    try {
+      const batch = writeBatch(db);
+      unread.forEach((m) => {
+        batch.update(doc(db, "messages", m.id), { read: true });
+      });
+      await batch.commit();
+    } catch (e) {
+      console.error("Failed to mark messages as read:", e);
+    } finally {
+      setMarkingRead(false);
+    }
   };
 
   const attendanceStats = attendance.reduce(
@@ -163,6 +220,8 @@ export default function ParentDashboard() {
     (attendanceRate !== null && attendanceRate < 75) ||
     attendanceStats.absent >= 3 ||
     lowScoreResults.length > 0;
+
+  const unreadMessages = messages.filter((m) => m.read === false).length;
 
   const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
   const monthlyFee = Number(student?.monthlyFee) || 0;
@@ -209,8 +268,8 @@ export default function ParentDashboard() {
               }}
             >
               {item.label}
-              {item.key === "messages" && messages.length > 0 && (
-                <span style={styles.navBadge}>{messages.length}</span>
+              {item.key === "messages" && unreadMessages > 0 && (
+                <span style={styles.navBadge}>{unreadMessages}</span>
               )}
               {item.key === "reports" && hasConcern && (
                 <span style={{ ...styles.navBadge, background: COLORS.warn }}>!</span>
@@ -254,8 +313,8 @@ export default function ParentDashboard() {
             />
             <StatCard
               label="Messages from admin"
-              value={messages.length}
-              accent={COLORS.danger}
+              value={unreadMessages > 0 ? `${unreadMessages} new` : messages.length}
+              accent={unreadMessages > 0 ? COLORS.danger : COLORS.accent}
             />
             <div style={{ ...styles.panel, gridColumn: "1 / -1" }}>
               <div style={styles.panelTitle}>Student details</div>
@@ -450,17 +509,46 @@ export default function ParentDashboard() {
 
         {tab === "messages" && (
           <section style={styles.panel}>
-            <div style={styles.panelTitle}>Messages from admin</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ ...styles.panelTitle, marginBottom: 0 }}>Messages from admin</div>
+              {unreadMessages > 0 && (
+                <button
+                  onClick={markAllAsRead}
+                  disabled={markingRead}
+                  style={styles.markReadBtn}
+                >
+                  {markingRead ? "Marking…" : `Mark all as read (${unreadMessages})`}
+                </button>
+              )}
+            </div>
             {messages.length === 0 ? (
               <EmptyState text="No messages yet." />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {messages.map((m) => (
-                  <div key={m.id} style={styles.messageCard}>
-                    <div style={styles.messageTitle}>{m.title || "Announcement"}</div>
-                    <div style={styles.messageBody}>{m.body || m.text}</div>
-                  </div>
-                ))}
+                {messages.map((m) => {
+                  const when = m.createdAt?.toDate
+                    ? m.createdAt.toDate()
+                    : m.createdAt
+                    ? new Date(m.createdAt)
+                    : null;
+                  return (
+                    <div key={m.id} style={styles.messageCard}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                        <div style={styles.messageTitle}>
+                          {m.subject || m.title || "Announcement"}
+                        </div>
+                        {m.read === false && (
+                          <span style={{ ...styles.navBadge, flexShrink: 0 }}>New</span>
+                        )}
+                      </div>
+                      <div style={styles.messageBody}>{m.text || m.body}</div>
+                      <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 8 }}>
+                        {m.senderName ? `From ${m.senderName}` : ""}
+                        {when ? ` · ${when.toLocaleString()}` : ""}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -678,6 +766,16 @@ const styles = {
     textAlign: "center",
     color: COLORS.textDim,
     fontSize: 14,
+  },
+  markReadBtn: {
+    padding: "8px 14px",
+    borderRadius: 8,
+    border: `1px solid ${COLORS.accent}`,
+    background: COLORS.accentSoft,
+    color: COLORS.accent,
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: "pointer",
   },
   messageCard: {
     background: COLORS.panelSoft,

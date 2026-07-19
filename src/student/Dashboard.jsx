@@ -78,22 +78,64 @@ export default function StudentDashboard() {
           setAttendance([]);
         }
 
-        try {
-          const msgQ = query(
-            collection(db, "messages"),
-            where("audience", "in", ["all", "students"])
-          );
-          const msgSnap = await getDocs(msgQ);
-          setMessages(msgSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-        } catch (e) {
-          setMessages([]);
-        }
       } finally {
         setLoading(false);
       }
     };
 
     load();
+
+    // Live messages feed — catches both broadcast messages sent to
+    // "all students" and individual messages addressed to this exact
+    // student (matched by recipientId, which MessagesCard sets to the
+    // student's document id). onSnapshot means this updates instantly,
+    // no refresh needed, as soon as admin sends something.
+    let unsubscribeBroadcast = () => {};
+    let unsubscribeIndividual = () => {};
+    let broadcastMsgs = [];
+    let individualMsgs = [];
+
+    function mergeAndSetMessages() {
+      const all = [...broadcastMsgs, ...individualMsgs];
+      // de-dupe by id, sort newest first
+      const seen = new Map();
+      all.forEach((m) => seen.set(m.id, m));
+      const merged = Array.from(seen.values()).sort((a, b) => {
+        const aTime = a.createdAt?.seconds || 0;
+        const bTime = b.createdAt?.seconds || 0;
+        return bTime - aTime;
+      });
+      setMessages(merged);
+    }
+
+    try {
+      const broadcastQ = query(
+        collection(db, "messages"),
+        where("audienceGroup", "==", "student"),
+        where("scope", "==", "broadcast")
+      );
+      unsubscribeBroadcast = onSnapshot(broadcastQ, (snap) => {
+        broadcastMsgs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        mergeAndSetMessages();
+      });
+    } catch (e) {
+      broadcastMsgs = [];
+    }
+
+    try {
+      const individualQ = query(
+        collection(db, "messages"),
+        where("audienceGroup", "==", "student"),
+        where("scope", "==", "individual"),
+        where("recipientId", "==", studentId)
+      );
+      unsubscribeIndividual = onSnapshot(individualQ, (snap) => {
+        individualMsgs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        mergeAndSetMessages();
+      });
+    } catch (e) {
+      individualMsgs = [];
+    }
 
     // Live exam results feed — updates instantly when a teacher/admin adds a result
     let unsubscribeResults = () => {};
@@ -126,6 +168,8 @@ export default function StudentDashboard() {
     return () => {
       unsubscribeResults();
       unsubscribe();
+      unsubscribeBroadcast();
+      unsubscribeIndividual();
     };
   }, [studentId, navigate]);
 
@@ -151,13 +195,30 @@ export default function StudentDashboard() {
       ? Math.round((attendanceStats.present / attendanceStats.total) * 100)
       : null;
 
-  const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-  const monthlyFee = Number(student?.monthlyFee) || 0;
+  // Payments written by the Cashier's Payments.jsx use paidAmount/monthKey/
+  // status/monthLabel/schoolName — not amount/date/method/cashierName.
+  // Sort newest first by monthKey (falls back to createdAt if monthKey missing).
   const sortedPayments = [...payments].sort((a, b) => {
-    const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date || 0);
-    const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date || 0);
-    return dateB - dateA;
+    if (a.monthKey && b.monthKey) return b.monthKey.localeCompare(a.monthKey);
+    const aTime = a.createdAt?.seconds || 0;
+    const bTime = b.createdAt?.seconds || 0;
+    return bTime - aTime;
   });
+
+  const totalPaid = payments.reduce(
+    (sum, p) => sum + (Number(p.paidAmount) || 0),
+    0
+  );
+  const monthlyFee =
+    Number(student?.monthlyFee) ||
+    Number(sortedPayments[0]?.monthlyFee) ||
+    0;
+
+  const latestPayment = sortedPayments[0];
+  const currentMonthKey = new Date().toISOString().slice(0, 7);
+  const isCurrentMonthPaid =
+    latestPayment?.monthKey === currentMonthKey &&
+    latestPayment?.status === "Paid";
 
   if (loading) {
     return (
@@ -363,6 +424,18 @@ export default function StudentDashboard() {
                   ${totalPaid.toLocaleString()}
                 </div>
               </div>
+              <div style={styles.paymentSummaryCard}>
+                <div style={styles.detailLabel}>This month</div>
+                <div
+                  style={{
+                    ...styles.statValue,
+                    fontSize: 18,
+                    color: isCurrentMonthPaid ? COLORS.accent : COLORS.danger,
+                  }}
+                >
+                  {isCurrentMonthPaid ? "Paid" : "Not Paid"}
+                </div>
+              </div>
             </div>
             {sortedPayments.length === 0 ? (
               <EmptyState text="No payments have been recorded yet." />
@@ -370,26 +443,25 @@ export default function StudentDashboard() {
               <table style={styles.table}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Date</th>
-                    <th style={styles.th}>Amount</th>
-                    <th style={styles.th}>Method</th>
-                    <th style={styles.th}>Recorded by</th>
+                    <th style={styles.th}>Month</th>
+                    <th style={styles.th}>School</th>
+                    <th style={styles.th}>Paid</th>
+                    <th style={styles.th}>Remaining</th>
+                    <th style={styles.th}>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedPayments.map((p) => {
-                    const d = p.date?.toDate ? p.date.toDate() : p.date;
-                    return (
-                      <tr key={p.id}>
-                        <td style={styles.td}>
-                          {d ? new Date(d).toLocaleDateString() : "—"}
-                        </td>
-                        <td style={styles.td}>${Number(p.amount || 0).toLocaleString()}</td>
-                        <td style={styles.td}>{p.method || "—"}</td>
-                        <td style={styles.td}>{p.cashierName || "—"}</td>
-                      </tr>
-                    );
-                  })}
+                  {sortedPayments.map((p) => (
+                    <tr key={p.id}>
+                      <td style={styles.td}>{p.monthLabel || p.monthKey || "—"}</td>
+                      <td style={styles.td}>{p.schoolName || "—"}</td>
+                      <td style={styles.td}>${Number(p.paidAmount || 0).toLocaleString()}</td>
+                      <td style={styles.td}>${Number(p.remaining || 0).toLocaleString()}</td>
+                      <td style={styles.td}>
+                        <StatusPill status={p.status} />
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             )}
@@ -405,8 +477,8 @@ export default function StudentDashboard() {
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {messages.map((m) => (
                   <div key={m.id} style={styles.messageCard}>
-                    <div style={styles.messageTitle}>{m.title || "Announcement"}</div>
-                    <div style={styles.messageBody}>{m.body || m.text}</div>
+                    <div style={styles.messageTitle}>{m.subject || m.title || "Announcement"}</div>
+                    <div style={styles.messageBody}>{m.text || m.body}</div>
                   </div>
                 ))}
               </div>
@@ -447,6 +519,8 @@ function StatusPill({ status }) {
     present: { bg: "rgba(62,207,142,0.15)", color: COLORS.accent },
     absent: { bg: "rgba(239,90,111,0.15)", color: COLORS.danger },
     late: { bg: "rgba(245,166,35,0.15)", color: COLORS.warn },
+    paid: { bg: "rgba(62,207,142,0.15)", color: COLORS.accent },
+    "not paid": { bg: "rgba(239,90,111,0.15)", color: COLORS.danger },
   };
   const style = map[s] || { bg: "rgba(139,151,176,0.15)", color: COLORS.textDim };
   return (

@@ -30,8 +30,20 @@ export default function Dashboard() {
     try {
       setLoading(true);
 
-      const studentsSnap = await getDocs(collection(db, "cashier"));
-      setStudents(studentsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      // Real enrolled students live in "students" (same collection
+      // Payments.jsx reads from) — "cashier" is cashier staff accounts,
+      // not students, so counting from it gave wrong totals.
+      const studentsSnap = await getDocs(collection(db, "students"));
+      const studentData = studentsSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter(
+          (s) =>
+            s.studentId &&
+            String(s.studentId).trim() !== "" &&
+            s.fullName &&
+            String(s.fullName).trim() !== ""
+        );
+      setStudents(studentData);
 
       const paymentsSnap = await getDocs(collection(db, "payments"));
       setPayments(paymentsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
