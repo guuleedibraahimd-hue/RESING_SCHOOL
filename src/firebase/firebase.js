@@ -4,7 +4,7 @@ import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
 /* ===========================================================
-   RESING SCHOOL ERP
+   Rising School ERP
    Firestore + Authentication
 =========================================================== */
 

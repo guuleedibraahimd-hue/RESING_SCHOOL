@@ -10,7 +10,7 @@ import {
 import { db } from "../firebase/firebase";
 import { theme } from "./theme.js";
 
-const SCHOOL_NAME = "Resing School"; // beddel magaca dugsigaaga haddii loo baahdo
+const SCHOOL_NAME = "Rising School"; // beddel magaca dugsigaaga haddii loo baahdo
 
 const currentMonthKey = () => new Date().toISOString().slice(0, 7); // "2026-07"
 

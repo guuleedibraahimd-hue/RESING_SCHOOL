@@ -59,9 +59,9 @@ export default function Home() {
     <div className="home">
       <header className="home-header">
         <div className="brand">
-          <img src={logo} className="brand-logo" alt="Resing School logo" />
+          <img src={logo} className="brand-logo" alt="Rising School logo" />
           <div className="brand-text">
-            <span className="brand-name">RESING SCHOOL</span>
+            <span className="brand-name">RISING SCHOOL</span>
             <span className="brand-tagline">School Management ERP System</span>
           </div>
         </div>
@@ -75,7 +75,7 @@ export default function Home() {
       <section className="hero">
         <div className="hero-copy">
           <p className="hero-eyebrow">Welcome to</p>
-          <h1 className="hero-title">RESING SCHOOL</h1>
+          <h1 className="hero-title">RiSING SCHOOL</h1>
           <h2 className="hero-subtitle">School Management ERP System</h2>
           <div className="hero-rule" />
           <p className="hero-lede">
@@ -148,7 +148,7 @@ export default function Home() {
       </section>
 
       <footer className="home-footer">
-        © {new Date().getFullYear()} Resing School. All rights reserved.
+        © {new Date().getFullYear()} Rising School. All rights reserved.
       </footer>
     </div>
   );

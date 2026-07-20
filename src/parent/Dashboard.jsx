@@ -43,6 +43,105 @@ function groupByClass(items) {
   );
 }
 
+function ResponsiveStyles() {
+  return (
+    <style>{`
+      .pd-layout { display: flex; min-height: 100vh; }
+      .pd-sidebar { width: 240px; background: ${COLORS.panel}; border-right: 1px solid ${COLORS.border}; display:flex; flex-direction:column; padding: 28px 20px; gap: 32px; flex-shrink: 0; }
+      .pd-main { flex: 1; padding: 36px 44px; overflow-y: auto; min-width: 0; }
+      .pd-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+      .pd-detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+      .pd-payment-summary-row { display: flex; gap: 16px; margin-bottom: 20px; }
+      .pd-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .pd-table { width: 100%; border-collapse: collapse; min-width: 420px; }
+      .pd-header { display:flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; gap: 12px; }
+      .pd-bottom-nav { display: none; }
+      .pd-mobile-topbar { display: none; }
+
+      @media (max-width: 860px) {
+        .pd-layout { flex-direction: column; }
+        .pd-sidebar { display: none; }
+        .pd-mobile-topbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 14px 16px;
+          background: ${COLORS.panel};
+          border-bottom: 1px solid ${COLORS.border};
+          position: sticky;
+          top: 0;
+          z-index: 20;
+        }
+        .pd-main { padding: 18px 16px 90px 16px; }
+        .pd-header { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 20px; }
+        .pd-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .pd-detail-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
+        .pd-payment-summary-row { flex-direction: column; gap: 10px; }
+        .pd-panel { padding: 16px; border-radius: 14px; }
+        .pd-stat-value { font-size: 20px !important; }
+        .pd-h1 { font-size: 22px !important; }
+
+        .pd-bottom-nav {
+          display: flex;
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: ${COLORS.panel};
+          border-top: 1px solid ${COLORS.border};
+          padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
+          z-index: 30;
+          overflow-x: auto;
+        }
+        .pd-bottom-nav-item {
+          flex: 1;
+          min-width: 60px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          background: transparent;
+          border: none;
+          color: ${COLORS.textDim};
+          font-size: 10.5px;
+          padding: 6px 2px;
+          position: relative;
+          white-space: nowrap;
+        }
+        .pd-bottom-nav-item.active { color: ${COLORS.accent}; }
+        .pd-bottom-dot {
+          width: 6px; height: 6px; border-radius: 999px; background: ${COLORS.accent};
+        }
+        .pd-bottom-badge {
+          position: absolute;
+          top: -2px;
+          right: 14%;
+          background: ${COLORS.danger};
+          color: #fff;
+          font-size: 10px;
+          padding: 1px 5px;
+          border-radius: 999px;
+        }
+      }
+
+      @media (max-width: 420px) {
+        .pd-grid { grid-template-columns: 1fr 1fr; }
+        .pd-detail-grid { grid-template-columns: 1fr; }
+      }
+    `}</style>
+  );
+}
+
+const NAV_ITEMS = [
+  { key: "overview", label: "Overview", icon: "🏠" },
+  { key: "results", label: "Results", icon: "📄" },
+  { key: "attendance", label: "Attendance", icon: "📅" },
+  { key: "payments", label: "Payments", icon: "💳" },
+  { key: "reports", label: "Reports", icon: "⚠️" },
+  { key: "messages", label: "Messages", icon: "💬" },
+];
+
 export default function ParentDashboard() {
   const navigate = useNavigate();
   const studentId = localStorage.getItem("studentId");
@@ -86,9 +185,6 @@ export default function ParentDashboard() {
 
     load();
 
-    // Live messages feed — broadcast messages for "parent" / "student" audience
-    // groups, PLUS any message sent directly to this student (recipientId).
-    // Combines two onSnapshot listeners and merges the results, newest first.
     let unsubMsgsGroup = () => {};
     let unsubMsgsDirect = () => {};
     const groupMsgs = new Map();
@@ -132,7 +228,6 @@ export default function ParentDashboard() {
       // ignore
     }
 
-    // Live exam results feed — updates instantly when a teacher/admin adds a result
     let unsubscribeResults = () => {};
     try {
       const resultsQ = query(
@@ -146,7 +241,6 @@ export default function ParentDashboard() {
       setResults([]);
     }
 
-    // Live payments feed — updates instantly when the cashier records a payment
     let unsubscribe = () => {};
     try {
       const paymentsQ = query(
@@ -234,6 +328,7 @@ export default function ParentDashboard() {
   if (loading) {
     return (
       <div style={{ ...styles.page, alignItems: "center", justifyContent: "center", display: "flex" }}>
+        <ResponsiveStyles />
         <div style={{ color: COLORS.textDim, fontSize: 14, letterSpacing: 1 }}>LOADING…</div>
       </div>
     );
@@ -241,329 +336,368 @@ export default function ParentDashboard() {
 
   return (
     <div style={styles.page}>
-      <aside style={styles.sidebar}>
-        <div style={styles.brand}>
+      <ResponsiveStyles />
+
+      {/* Mobile top bar (visible only on small screens) */}
+      <div className="pd-mobile-topbar">
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={styles.brandMark}>RS</div>
           <div>
-            <div style={styles.brandTitle}>Resing School</div>
-            <div style={styles.brandSub}>Parent Portal</div>
+            <div style={{ ...styles.brandTitle, fontSize: 13 }}>Rising School</div>
+            <div style={{ ...styles.brandSub, fontSize: 11 }}>Parent Portal</div>
           </div>
         </div>
-
-        <nav style={styles.nav}>
-          {[
-            { key: "overview", label: "Overview" },
-            { key: "results", label: "Exam Results" },
-            { key: "attendance", label: "Attendance" },
-            { key: "payments", label: "Payments" },
-            { key: "reports", label: "Reports & Concerns" },
-            { key: "messages", label: "Messages" },
-          ].map((item) => (
-            <button
-              key={item.key}
-              onClick={() => setTab(item.key)}
-              style={{
-                ...styles.navItem,
-                ...(tab === item.key ? styles.navItemActive : {}),
-              }}
-            >
-              {item.label}
-              {item.key === "messages" && unreadMessages > 0 && (
-                <span style={styles.navBadge}>{unreadMessages}</span>
-              )}
-              {item.key === "reports" && hasConcern && (
-                <span style={{ ...styles.navBadge, background: COLORS.warn }}>!</span>
-              )}
-            </button>
-          ))}
-        </nav>
-
-        <button onClick={logout} style={styles.logoutBtn}>
+        <button onClick={logout} style={styles.logoutBtnMobile}>
           Log out
         </button>
-      </aside>
+      </div>
 
-      <main style={styles.main}>
-        <header style={styles.header}>
-          <div>
-            <div style={styles.eyebrow}>Following student {studentId}</div>
-            <h1 style={styles.h1}>
-              {student?.fullName ? student.fullName : "Your child"}
-            </h1>
-          </div>
-          <div style={styles.classPill}>{student?.className || "—"}</div>
-        </header>
-
-        {tab === "overview" && (
-          <section style={styles.grid}>
-            <StatCard
-              label="Attendance rate"
-              value={attendanceRate !== null ? `${attendanceRate}%` : "No data"}
-              accent={hasConcern ? COLORS.danger : COLORS.accent}
-            />
-            <StatCard
-              label="Exam results recorded"
-              value={results.length}
-              accent={COLORS.warn}
-            />
-            <StatCard
-              label="Total paid"
-              value={`$${totalPaid.toLocaleString()}`}
-              accent={COLORS.accent}
-            />
-            <StatCard
-              label="Messages from admin"
-              value={unreadMessages > 0 ? `${unreadMessages} new` : messages.length}
-              accent={unreadMessages > 0 ? COLORS.danger : COLORS.accent}
-            />
-            <div style={{ ...styles.panel, gridColumn: "1 / -1" }}>
-              <div style={styles.panelTitle}>Student details</div>
-              <div style={styles.detailGrid}>
-                <Detail label="Full name" value={student?.fullName} />
-                <Detail label="Class" value={student?.className} />
-                <Detail label="District" value={student?.district} />
-                <Detail label="Monthly fee" value={student?.monthlyFee} />
-                <Detail label="Student phone" value={student?.studentPhone} />
-                <Detail label="Orphan status" value={student?.orphanStatus} />
-              </div>
+      <div className="pd-layout">
+        {/* Desktop sidebar (hidden on small screens) */}
+        <aside className="pd-sidebar">
+          <div style={styles.brand}>
+            <div style={styles.brandMark}>RS</div>
+            <div>
+              <div style={styles.brandTitle}>Rising School</div>
+              <div style={styles.brandSub}>Parent Portal</div>
             </div>
-          </section>
-        )}
+          </div>
 
-        {tab === "results" && (
-          <section style={styles.panel}>
-            <div style={styles.panelTitle}>Exam results — all classes</div>
-            {results.length === 0 ? (
-              <EmptyState text="No exam results have been recorded yet." />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                {groupByClass(results).map(([className, classResults]) => (
-                  <div key={className}>
-                    <div style={styles.classGroupLabel}>Class {className}</div>
-                    <table style={styles.table}>
-                      <thead>
-                        <tr>
-                          <th style={styles.th}>Subject</th>
-                          <th style={styles.th}>Exam</th>
-                          <th style={styles.th}>Marks</th>
-                          <th style={styles.th}>%</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {classResults.map((r) => {
-                          const marks = Number(r.marks);
-                          const maxMarks = Number(r.maxMarks);
-                          const pct =
-                            !isNaN(marks) && maxMarks
-                              ? Math.round((marks / maxMarks) * 100)
-                              : null;
-                          return (
-                            <tr key={r.id}>
-                              <td style={styles.td}>{r.subject || "—"}</td>
-                              <td style={styles.td}>{r.examName || r.term || "—"}</td>
-                              <td style={styles.td}>
-                                {!isNaN(marks) ? `${marks} / ${maxMarks || "—"}` : "—"}
-                              </td>
-                              <td style={styles.td}>
-                                {pct !== null ? (
-                                  <span
-                                    style={{
-                                      color: pct >= 50 ? COLORS.accent : COLORS.danger,
-                                      fontWeight: 600,
-                                    }}
-                                  >
-                                    {pct}%
-                                  </span>
-                                ) : (
-                                  "—"
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
+          <nav style={styles.nav}>
+            {NAV_ITEMS.map((item) => (
+              <button
+                key={item.key}
+                onClick={() => setTab(item.key)}
+                style={{
+                  ...styles.navItem,
+                  ...(tab === item.key ? styles.navItemActive : {}),
+                }}
+              >
+                {item.label}
+                {item.key === "messages" && unreadMessages > 0 && (
+                  <span style={styles.navBadge}>{unreadMessages}</span>
+                )}
+                {item.key === "reports" && hasConcern && (
+                  <span style={{ ...styles.navBadge, background: COLORS.warn }}>!</span>
+                )}
+              </button>
+            ))}
+          </nav>
 
-        {tab === "attendance" && (
-          <section style={styles.panel}>
-            <div style={styles.panelTitle}>Attendance — all classes</div>
-            {attendance.length === 0 ? (
-              <EmptyState text="No attendance records yet." />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                {groupByClass(attendance).map(([className, classAttendance]) => (
-                  <div key={className}>
-                    <div style={styles.classGroupLabel}>Class {className}</div>
-                    <table style={styles.table}>
-                      <thead>
-                        <tr>
-                          <th style={styles.th}>Date</th>
-                          <th style={styles.th}>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {classAttendance.map((a) => (
-                          <tr key={a.id}>
-                            <td style={styles.td}>{a.date || "—"}</td>
-                            <td style={styles.td}>
-                              <StatusPill status={a.status} />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
+          <button onClick={logout} style={styles.logoutBtn}>
+            Log out
+          </button>
+        </aside>
 
-        {tab === "payments" && (
-          <section style={styles.panel}>
-            <div style={styles.panelTitle}>Payments</div>
-            <div style={styles.paymentSummaryRow}>
-              <div style={styles.paymentSummaryCard}>
-                <div style={styles.detailLabel}>Monthly fee</div>
-                <div style={styles.statValue}>${monthlyFee.toLocaleString()}</div>
-              </div>
-              <div style={styles.paymentSummaryCard}>
-                <div style={styles.detailLabel}>Total paid</div>
-                <div style={{ ...styles.statValue, color: COLORS.accent }}>
-                  ${totalPaid.toLocaleString()}
+        <main className="pd-main">
+          <header className="pd-header">
+            <div>
+              <div style={styles.eyebrow}>Following student {studentId}</div>
+              <h1 className="pd-h1" style={styles.h1}>
+                {student?.fullName ? student.fullName : "Your child"}
+              </h1>
+            </div>
+            <div style={styles.classPill}>{student?.className || "—"}</div>
+          </header>
+
+          {tab === "overview" && (
+            <section className="pd-grid">
+              <StatCard
+                label="Attendance rate"
+                value={attendanceRate !== null ? `${attendanceRate}%` : "No data"}
+                accent={hasConcern ? COLORS.danger : COLORS.accent}
+              />
+              <StatCard
+                label="Exam results recorded"
+                value={results.length}
+                accent={COLORS.warn}
+              />
+              <StatCard
+                label="Total paid"
+                value={`$${totalPaid.toLocaleString()}`}
+                accent={COLORS.accent}
+              />
+              <StatCard
+                label="Messages from admin"
+                value={unreadMessages > 0 ? `${unreadMessages} new` : messages.length}
+                accent={unreadMessages > 0 ? COLORS.danger : COLORS.accent}
+              />
+              <div className="pd-panel" style={{ ...styles.panel, gridColumn: "1 / -1" }}>
+                <div style={styles.panelTitle}>Student details</div>
+                <div className="pd-detail-grid">
+                  <Detail label="Full name" value={student?.fullName} />
+                  <Detail label="Class" value={student?.className} />
+                  <Detail label="District" value={student?.district} />
+                  <Detail label="Monthly fee" value={student?.monthlyFee} />
+                  <Detail label="Student phone" value={student?.studentPhone} />
+                  <Detail label="Orphan status" value={student?.orphanStatus} />
                 </div>
               </div>
-            </div>
-            {sortedPayments.length === 0 ? (
-              <EmptyState text="No payments have been recorded yet." />
-            ) : (
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Date</th>
-                    <th style={styles.th}>Amount</th>
-                    <th style={styles.th}>Method</th>
-                    <th style={styles.th}>Recorded by</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedPayments.map((p) => {
-                    const d = p.date?.toDate ? p.date.toDate() : p.date;
-                    return (
-                      <tr key={p.id}>
-                        <td style={styles.td}>
-                          {d ? new Date(d).toLocaleDateString() : "—"}
-                        </td>
-                        <td style={styles.td}>${Number(p.amount || 0).toLocaleString()}</td>
-                        <td style={styles.td}>{p.method || "—"}</td>
-                        <td style={styles.td}>{p.cashierName || "—"}</td>
+            </section>
+          )}
+
+          {tab === "results" && (
+            <section className="pd-panel" style={styles.panel}>
+              <div style={styles.panelTitle}>Exam results — all classes</div>
+              {results.length === 0 ? (
+                <EmptyState text="No exam results have been recorded yet." />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                  {groupByClass(results).map(([className, classResults]) => (
+                    <div key={className}>
+                      <div style={styles.classGroupLabel}>Class {className}</div>
+                      <div className="pd-table-wrap">
+                        <table className="pd-table" style={styles.table}>
+                          <thead>
+                            <tr>
+                              <th style={styles.th}>Subject</th>
+                              <th style={styles.th}>Exam</th>
+                              <th style={styles.th}>Marks</th>
+                              <th style={styles.th}>%</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {classResults.map((r) => {
+                              const marks = Number(r.marks);
+                              const maxMarks = Number(r.maxMarks);
+                              const pct =
+                                !isNaN(marks) && maxMarks
+                                  ? Math.round((marks / maxMarks) * 100)
+                                  : null;
+                              return (
+                                <tr key={r.id}>
+                                  <td style={styles.td}>{r.subject || "—"}</td>
+                                  <td style={styles.td}>{r.examName || r.term || "—"}</td>
+                                  <td style={styles.td}>
+                                    {!isNaN(marks) ? `${marks} / ${maxMarks || "—"}` : "—"}
+                                  </td>
+                                  <td style={styles.td}>
+                                    {pct !== null ? (
+                                      <span
+                                        style={{
+                                          color: pct >= 50 ? COLORS.accent : COLORS.danger,
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        {pct}%
+                                      </span>
+                                    ) : (
+                                      "—"
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "attendance" && (
+            <section className="pd-panel" style={styles.panel}>
+              <div style={styles.panelTitle}>Attendance — all classes</div>
+              {attendance.length === 0 ? (
+                <EmptyState text="No attendance records yet." />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                  {groupByClass(attendance).map(([className, classAttendance]) => (
+                    <div key={className}>
+                      <div style={styles.classGroupLabel}>Class {className}</div>
+                      <div className="pd-table-wrap">
+                        <table className="pd-table" style={styles.table}>
+                          <thead>
+                            <tr>
+                              <th style={styles.th}>Date</th>
+                              <th style={styles.th}>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {classAttendance.map((a) => (
+                              <tr key={a.id}>
+                                <td style={styles.td}>{a.date || "—"}</td>
+                                <td style={styles.td}>
+                                  <StatusPill status={a.status} />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "payments" && (
+            <section className="pd-panel" style={styles.panel}>
+              <div style={styles.panelTitle}>Payments</div>
+              <div className="pd-payment-summary-row">
+                <div style={styles.paymentSummaryCard}>
+                  <div style={styles.detailLabel}>Monthly fee</div>
+                  <div className="pd-stat-value" style={styles.statValue}>${monthlyFee.toLocaleString()}</div>
+                </div>
+                <div style={styles.paymentSummaryCard}>
+                  <div style={styles.detailLabel}>Total paid</div>
+                  <div className="pd-stat-value" style={{ ...styles.statValue, color: COLORS.accent }}>
+                    ${totalPaid.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+              {sortedPayments.length === 0 ? (
+                <EmptyState text="No payments have been recorded yet." />
+              ) : (
+                <div className="pd-table-wrap">
+                  <table className="pd-table" style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Date</th>
+                        <th style={styles.th}>Amount</th>
+                        <th style={styles.th}>Method</th>
+                        <th style={styles.th}>Recorded by</th>
                       </tr>
+                    </thead>
+                    <tbody>
+                      {sortedPayments.map((p) => {
+                        const d = p.date?.toDate ? p.date.toDate() : p.date;
+                        return (
+                          <tr key={p.id}>
+                            <td style={styles.td}>
+                              {d ? new Date(d).toLocaleDateString() : "—"}
+                            </td>
+                            <td style={styles.td}>${Number(p.amount || 0).toLocaleString()}</td>
+                            <td style={styles.td}>{p.method || "—"}</td>
+                            <td style={styles.td}>{p.cashierName || "—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
+          {tab === "reports" && (
+            <section className="pd-panel" style={styles.panel}>
+              <div style={styles.panelTitle}>Reports &amp; concerns</div>
+              {hasConcern ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {((attendanceRate !== null && attendanceRate < 75) ||
+                    attendanceStats.absent >= 3) && (
+                    <div style={styles.concernCard}>
+                      <div style={styles.concernTitle}>Attendance needs attention</div>
+                      <div style={styles.concernBody}>
+                        {attendanceRate !== null
+                          ? `Your child's attendance rate is ${attendanceRate}%, with ${attendanceStats.absent} absence(s) recorded. Consider following up with the school.`
+                          : `Your child has ${attendanceStats.absent} absence(s) recorded. Consider following up with the school.`}
+                      </div>
+                    </div>
+                  )}
+                  {lowScoreResults.map((r) => (
+                    <div key={r.id} style={styles.concernCard}>
+                      <div style={styles.concernTitle}>
+                        Low score in {r.subject || "an exam"}
+                      </div>
+                      <div style={styles.concernBody}>
+                        {`Your child scored ${r.marks}/${r.maxMarks} (${r.pct}%) on ${
+                          r.examName || "an exam"
+                        }, below the 50% pass mark. Consider following up with the teacher.`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState text="No attendance or performance concerns at this time." />
+              )}
+            </section>
+          )}
+
+          {tab === "messages" && (
+            <section className="pd-panel" style={styles.panel}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+                <div style={{ ...styles.panelTitle, marginBottom: 0 }}>Messages from admin</div>
+                {unreadMessages > 0 && (
+                  <button
+                    onClick={markAllAsRead}
+                    disabled={markingRead}
+                    style={styles.markReadBtn}
+                  >
+                    {markingRead ? "Marking…" : `Mark all as read (${unreadMessages})`}
+                  </button>
+                )}
+              </div>
+              {messages.length === 0 ? (
+                <EmptyState text="No messages yet." />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {messages.map((m) => {
+                    const when = m.createdAt?.toDate
+                      ? m.createdAt.toDate()
+                      : m.createdAt
+                      ? new Date(m.createdAt)
+                      : null;
+                    return (
+                      <div key={m.id} style={styles.messageCard}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                          <div style={styles.messageTitle}>
+                            {m.subject || m.title || "Announcement"}
+                          </div>
+                          {m.read === false && (
+                            <span style={{ ...styles.navBadge, flexShrink: 0 }}>New</span>
+                          )}
+                        </div>
+                        <div style={styles.messageBody}>{m.text || m.body}</div>
+                        <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 8 }}>
+                          {m.senderName ? `From ${m.senderName}` : ""}
+                          {when ? ` · ${when.toLocaleString()}` : ""}
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            )}
-          </section>
-        )}
-
-        {tab === "reports" && (
-          <section style={styles.panel}>
-            <div style={styles.panelTitle}>Reports &amp; concerns</div>
-            {hasConcern ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {((attendanceRate !== null && attendanceRate < 75) ||
-                  attendanceStats.absent >= 3) && (
-                  <div style={styles.concernCard}>
-                    <div style={styles.concernTitle}>Attendance needs attention</div>
-                    <div style={styles.concernBody}>
-                      {attendanceRate !== null
-                        ? `Your child's attendance rate is ${attendanceRate}%, with ${attendanceStats.absent} absence(s) recorded. Consider following up with the school.`
-                        : `Your child has ${attendanceStats.absent} absence(s) recorded. Consider following up with the school.`}
-                    </div>
-                  </div>
-                )}
-                {lowScoreResults.map((r) => (
-                  <div key={r.id} style={styles.concernCard}>
-                    <div style={styles.concernTitle}>
-                      Low score in {r.subject || "an exam"}
-                    </div>
-                    <div style={styles.concernBody}>
-                      {`Your child scored ${r.marks}/${r.maxMarks} (${r.pct}%) on ${
-                        r.examName || "an exam"
-                      }, below the 50% pass mark. Consider following up with the teacher.`}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState text="No attendance or performance concerns at this time." />
-            )}
-          </section>
-        )}
-
-        {tab === "messages" && (
-          <section style={styles.panel}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <div style={{ ...styles.panelTitle, marginBottom: 0 }}>Messages from admin</div>
-              {unreadMessages > 0 && (
-                <button
-                  onClick={markAllAsRead}
-                  disabled={markingRead}
-                  style={styles.markReadBtn}
-                >
-                  {markingRead ? "Marking…" : `Mark all as read (${unreadMessages})`}
-                </button>
+                </div>
               )}
-            </div>
-            {messages.length === 0 ? (
-              <EmptyState text="No messages yet." />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {messages.map((m) => {
-                  const when = m.createdAt?.toDate
-                    ? m.createdAt.toDate()
-                    : m.createdAt
-                    ? new Date(m.createdAt)
-                    : null;
-                  return (
-                    <div key={m.id} style={styles.messageCard}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                        <div style={styles.messageTitle}>
-                          {m.subject || m.title || "Announcement"}
-                        </div>
-                        {m.read === false && (
-                          <span style={{ ...styles.navBadge, flexShrink: 0 }}>New</span>
-                        )}
-                      </div>
-                      <div style={styles.messageBody}>{m.text || m.body}</div>
-                      <div style={{ fontSize: 11, color: COLORS.textDim, marginTop: 8 }}>
-                        {m.senderName ? `From ${m.senderName}` : ""}
-                        {when ? ` · ${when.toLocaleString()}` : ""}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            </section>
+          )}
+        </main>
+      </div>
+
+      {/* Mobile bottom nav (visible only on small screens) */}
+      <nav className="pd-bottom-nav">
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item.key}
+            onClick={() => setTab(item.key)}
+            className={`pd-bottom-nav-item${tab === item.key ? " active" : ""}`}
+          >
+            <span style={{ fontSize: 17, lineHeight: 1 }}>{item.icon}</span>
+            <span>{item.label}</span>
+            {item.key === "messages" && unreadMessages > 0 && (
+              <span className="pd-bottom-badge">{unreadMessages}</span>
             )}
-          </section>
-        )}
-      </main>
+            {item.key === "reports" && hasConcern && (
+              <span className="pd-bottom-badge" style={{ background: COLORS.warn }}>!</span>
+            )}
+            {tab === item.key && <span className="pd-bottom-dot" />}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
 
 function StatCard({ label, value, accent }) {
   return (
-    <div style={styles.panel}>
+    <div className="pd-panel" style={styles.panel}>
       <div style={{ ...styles.statBar, background: accent }} />
       <div style={styles.statLabel}>{label}</div>
-      <div style={styles.statValue}>{value}</div>
+      <div className="pd-stat-value" style={styles.statValue}>{value}</div>
     </div>
   );
 }
@@ -611,17 +745,7 @@ const styles = {
     minHeight: "100vh",
     background: COLORS.bg,
     color: COLORS.text,
-    display: "flex",
     fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
-  },
-  sidebar: {
-    width: 240,
-    background: COLORS.panel,
-    borderRight: `1px solid ${COLORS.border}`,
-    display: "flex",
-    flexDirection: "column",
-    padding: "28px 20px",
-    gap: 32,
   },
   brand: { display: "flex", alignItems: "center", gap: 12 },
   brandMark: {
@@ -635,6 +759,7 @@ const styles = {
     justifyContent: "center",
     fontWeight: 700,
     fontSize: 14,
+    flexShrink: 0,
   },
   brandTitle: { fontSize: 14, fontWeight: 700 },
   brandSub: { fontSize: 12, color: COLORS.textDim },
@@ -673,12 +798,15 @@ const styles = {
     fontSize: 13,
     cursor: "pointer",
   },
-  main: { flex: 1, padding: "36px 44px", overflowY: "auto" },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginBottom: 28,
+  logoutBtnMobile: {
+    padding: "8px 12px",
+    borderRadius: 8,
+    border: `1px solid ${COLORS.border}`,
+    background: "transparent",
+    color: COLORS.textDim,
+    fontSize: 12,
+    cursor: "pointer",
+    flexShrink: 0,
   },
   eyebrow: {
     fontSize: 12,
@@ -695,16 +823,7 @@ const styles = {
     border: `1px solid ${COLORS.border}`,
     fontSize: 13,
     color: COLORS.textDim,
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: 18,
-  },
-  paymentSummaryRow: {
-    display: "flex",
-    gap: 16,
-    marginBottom: 20,
+    alignSelf: "flex-start",
   },
   paymentSummaryCard: {
     background: COLORS.panelSoft,
@@ -739,11 +858,6 @@ const styles = {
   },
   statLabel: { fontSize: 13, color: COLORS.textDim, marginBottom: 8 },
   statValue: { fontSize: 26, fontWeight: 700 },
-  detailGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 18,
-  },
   detailLabel: { fontSize: 12, color: COLORS.textDim, marginBottom: 4 },
   detailValue: { fontSize: 14, fontWeight: 500 },
   table: { width: "100%", borderCollapse: "collapse" },
@@ -755,11 +869,13 @@ const styles = {
     borderBottom: `1px solid ${COLORS.border}`,
     textTransform: "uppercase",
     letterSpacing: 0.5,
+    whiteSpace: "nowrap",
   },
   td: {
     padding: "12px 10px",
     borderBottom: `1px solid ${COLORS.border}`,
     fontSize: 14,
+    whiteSpace: "nowrap",
   },
   empty: {
     padding: "32px 0",
