@@ -10,6 +10,7 @@ import {
   BarChart3,
   CalendarCheck,
   ClipboardList,
+  CalendarDays,
   HelpCircle,
 } from "lucide-react";
 
@@ -23,6 +24,7 @@ const menus = [
   { name: "Classes", icon: School, path: "/admin/classes" },
   { name: "Attendance", icon: CalendarCheck, path: "/admin/attendance" },
   { name: "Exams", icon: ClipboardList, path: "/admin/exams" },
+  { name: "Timetable", icon: CalendarDays, path: "/admin/timetable" },
   { name: "Add Cashier", icon: Wallet, path: "/admin/add-cashier" },
   { name: "Messages", icon: MessageCircle, path: "/admin/messages" },
   { name: "Reports", icon: BarChart3, path: "/admin/reports" },
