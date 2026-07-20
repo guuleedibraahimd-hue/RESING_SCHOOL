@@ -120,10 +120,17 @@ export default function Attendance() {
   }, [records]);
 
   const classNames = useMemo(() => {
-    return Object.keys(groupedByClass)
+    // Start from the fixed list of 12 classes so every class always shows,
+    // even ones with zero attendance records. Any class present in the data
+    // but not in CLASS_ORDER (shouldn't normally happen) still gets included.
+    const allClassNames = Array.from(
+      new Set([...CLASS_ORDER, ...Object.keys(groupedByClass)])
+    );
+
+    return allClassNames
       .filter((className) => {
         if (!search.trim()) return true;
-        const teacherIdsForClass = Object.keys(groupedByClass[className]);
+        const teacherIdsForClass = Object.keys(groupedByClass[className] || {});
         const matchesClass = className.toLowerCase().includes(search.toLowerCase());
         const matchesTeacher = teacherIdsForClass.some((tid) => {
           const name = teachers[tid]?.fullName || tid;
@@ -262,7 +269,7 @@ export default function Attendance() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               {classNames.map((className) => {
-                const teachersMap = groupedByClass[className];
+                const teachersMap = groupedByClass[className] || {};
                 const teacherIdsForClass = Object.keys(teachersMap).sort();
                 const totalDaysForClass = new Set(
                   teacherIdsForClass.flatMap((tid) =>
