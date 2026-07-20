@@ -3,15 +3,44 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase/firebase";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import { Download, ChevronRight, ChevronLeft } from "lucide-react";
+import {
+  Download,
+  ChevronRight,
+  ChevronLeft,
+  BookOpen,
+  Users,
+  ClipboardList,
+  GraduationCap,
+} from "lucide-react";
 
-const cardStyle = {
-  background: "#fff",
-  borderRadius: 18,
-  padding: "22px 24px",
-  boxShadow: "0 4px 18px rgba(17,24,39,0.06)",
-  border: "1px solid rgba(17,24,39,0.05)",
-};
+// Fixed class order: 1 -> 8 (primary), then F1 -> F4 (secondary/form)
+const CLASS_ORDER = ["1", "2", "3", "4", "5", "6", "7", "8", "F1", "F2", "F3", "F4"];
+function classRank(className) {
+  const idx = CLASS_ORDER.indexOf(String(className || "").toUpperCase());
+  return idx === -1 ? 999 : idx;
+}
+
+function ResponsiveStyles() {
+  return (
+    <style>{`
+      .ex-layout { display: flex; min-height: 100vh; background: #0b0a1c; }
+      .ex-content { flex: 1; min-width: 0; }
+      .ex-class-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
+      .ex-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+      @media (max-width: 900px) {
+        .ex-page-pad { padding: 16px !important; }
+        .ex-header-row { gap: 10px !important; }
+        .ex-header-title { font-size: 20px !important; }
+        .ex-class-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+        .ex-toolbar { flex-direction: column; align-items: stretch !important; }
+      }
+      @media (max-width: 480px) {
+        .ex-class-grid { grid-template-columns: 1fr; }
+      }
+    `}</style>
+  );
+}
 
 export default function Exams() {
   const [loading, setLoading] = useState(true);
@@ -44,24 +73,22 @@ export default function Exams() {
     }
   }
 
-  // Group everything by class, using each student's className as the
-  // source of truth (exams/results carry className too, but a student's
-  // own record is what decides which class roster they belong to).
+  // Always show all 12 fixed classes, whether or not they have students/exams.
   const classes = useMemo(() => {
-    const set = new Set();
+    const set = new Set(CLASS_ORDER);
     students.forEach((s) => {
-      if (s.className && s.className.trim() !== "") set.add(s.className);
+      if (s.className && String(s.className).trim() !== "") set.add(String(s.className).toUpperCase());
     });
     exams.forEach((e) => {
-      if (e.className && e.className.trim() !== "") set.add(e.className);
+      if (e.className && String(e.className).trim() !== "") set.add(String(e.className).toUpperCase());
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    return Array.from(set).sort((a, b) => classRank(a) - classRank(b));
   }, [students, exams]);
 
   const examsForClass = useMemo(() => {
     if (!selectedClass) return [];
     return exams
-      .filter((e) => e.className === selectedClass)
+      .filter((e) => String(e.className || "").toUpperCase() === selectedClass)
       .sort((a, b) => (a.subject || "").localeCompare(b.subject || ""));
   }, [exams, selectedClass]);
 
@@ -71,7 +98,9 @@ export default function Exams() {
   const gradebook = useMemo(() => {
     if (!selectedClass) return { subjects: [], rows: [] };
 
-    const classStudents = students.filter((s) => s.className === selectedClass);
+    const classStudents = students.filter(
+      (s) => String(s.className || "").toUpperCase() === selectedClass
+    );
     const subjectList = Array.from(
       new Set(examsForClass.map((e) => e.subject || e.examName || "Subject"))
     );
@@ -107,6 +136,7 @@ export default function Exams() {
         totalMarks,
         totalMax,
         average,
+        hasAnyResult: totalMax > 0,
       };
     });
 
@@ -143,106 +173,162 @@ export default function Exams() {
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#F3F4F8", fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div className="ex-layout">
+      <ResponsiveStyles />
       <Sidebar />
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ padding: "22px 26px 0" }}>
+      <div className="ex-content">
+        <div style={{ padding: "20px 24px 0" }}>
           <Topbar />
         </div>
 
-        <div style={{ padding: "26px 30px" }}>
-          <h1 style={{ margin: "0 0 22px", fontSize: 22, fontWeight: 800, color: "#111827" }}>
-            Exams
-          </h1>
+        <div className="ex-page-pad" style={{ padding: "26px 30px" }}>
+          {/* Header */}
+          <div
+            className="ex-header-row"
+            style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}
+          >
+            <div
+              style={{
+                width: 55,
+                height: 55,
+                borderRadius: 15,
+                background: "linear-gradient(135deg,#6d5df0,#8b6cf5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <GraduationCap color="#fff" size={26} />
+            </div>
+            <div>
+              <h1 className="ex-header-title" style={{ margin: 0, fontSize: 26, color: "#fff" }}>
+                Exams
+              </h1>
+              <div style={{ color: "#8b87ad", fontSize: 14 }}>
+                Dooro fasal si aad u aragto imtixaanada iyo natiijooyinka ardayda.
+              </div>
+            </div>
+          </div>
 
           {loading && (
-            <div style={{ ...cardStyle, textAlign: "center", color: "#9CA3AF" }}>
+            <div style={{ color: "#8b87ad", textAlign: "center", padding: 60 }}>
               Xogta ayaa la soo qaadayaa...
             </div>
           )}
 
           {!loading && !selectedClass && (
-            <>
-              <p style={{ color: "#6B7280", fontSize: 14, marginBottom: 16 }}>
-                Dooro fasal si aad u aragto imtixaanada iyo natiijooyinka ardayda.
-              </p>
-
-              {classes.length === 0 ? (
-                <div style={{ ...cardStyle, textAlign: "center", color: "#9CA3AF" }}>
-                  Fasallo iyo imtixaano lama helin.
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-                    gap: 18,
-                  }}
-                >
-                  {classes.map((cls) => {
-                    const examCount = exams.filter((e) => e.className === cls).length;
-                    const studentCount = students.filter((s) => s.className === cls).length;
-                    return (
-                      <button
-                        key={cls}
-                        onClick={() => setSelectedClass(cls)}
+            <div className="ex-class-grid">
+              {classes.map((cls) => {
+                const examCount = exams.filter(
+                  (e) => String(e.className || "").toUpperCase() === cls
+                ).length;
+                const studentCount = students.filter(
+                  (s) => String(s.className || "").toUpperCase() === cls
+                ).length;
+                return (
+                  <button
+                    key={cls}
+                    onClick={() => setSelectedClass(cls)}
+                    style={{
+                      background: "linear-gradient(160deg,#151233,#181341)",
+                      border: "1px solid rgba(139,108,245,0.25)",
+                      borderRadius: 20,
+                      padding: "20px 22px",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 14,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div
                         style={{
-                          ...cardStyle,
-                          textAlign: "left",
-                          cursor: "pointer",
+                          width: 44,
+                          height: 44,
+                          borderRadius: 13,
+                          background: "linear-gradient(135deg,#22C55E,#16A34A)",
                           display: "flex",
-                          flexDirection: "column",
-                          gap: 10,
-                          border: "1px solid rgba(22,163,74,0.15)",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#fff",
+                          fontWeight: 700,
+                          fontSize: 14,
+                          flexShrink: 0,
                         }}
                       >
-                        <div
-                          style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 12,
-                            background: "#E6F5EC",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 20,
-                          }}
-                        >
-                          📘
+                        {cls}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 16, color: "#fff" }}>
+                          Fasalka: {cls}
                         </div>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: 16, color: "#111827" }}>
-                            Class {cls}
-                          </div>
-                          <div style={{ fontSize: 12.5, color: "#9CA3AF", marginTop: 2 }}>
-                            {examCount} exam{examCount !== 1 ? "s" : ""} · {studentCount} student
-                            {studentCount !== 1 ? "s" : ""}
-                          </div>
+                        <div style={{ fontSize: 12.5, color: "#8b87ad", marginTop: 2 }}>
+                          {examCount} exam{examCount !== 1 ? "s" : ""} · {studentCount} arday
                         </div>
-                        <span
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            fontSize: 12.5,
-                            fontWeight: 700,
-                            color: "#16a34a",
-                          }}
-                        >
-                          View results <ChevronRight size={14} />
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <span
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          background: "rgba(139,108,245,0.1)",
+                          border: "1px solid rgba(139,108,245,0.25)",
+                          borderRadius: 20,
+                          padding: "5px 12px",
+                          color: "#c4b8f7",
+                          fontSize: 12,
+                          fontWeight: 600,
+                        }}
+                      >
+                        <ClipboardList size={13} /> {examCount} Exam
+                      </span>
+                      <span
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          background: "rgba(139,108,245,0.1)",
+                          border: "1px solid rgba(139,108,245,0.25)",
+                          borderRadius: 20,
+                          padding: "5px 12px",
+                          color: "#c4b8f7",
+                          fontSize: 12,
+                          fontWeight: 600,
+                        }}
+                      >
+                        <Users size={13} /> {studentCount} Arday
+                      </span>
+                    </div>
+
+                    <span
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: "#8B5CF6",
+                        marginTop: 2,
+                      }}
+                    >
+                      Fiiri natiijada <ChevronRight size={15} />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           )}
 
           {!loading && selectedClass && (
             <div>
               <div
+                className="ex-toolbar"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -260,18 +346,19 @@ export default function Exams() {
                     gap: 6,
                     background: "transparent",
                     border: "none",
-                    color: "#16a34a",
+                    color: "#8B5CF6",
                     fontWeight: 700,
                     fontSize: 13.5,
                     cursor: "pointer",
                     padding: 0,
                   }}
                 >
-                  <ChevronLeft size={16} /> All Classes
+                  <ChevronLeft size={16} /> Dhamaan Fasallada
                 </button>
 
                 <button
                   onClick={exportCSV}
+                  disabled={gradebook.rows.length === 0}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -279,11 +366,15 @@ export default function Exams() {
                     padding: "10px 18px",
                     borderRadius: 12,
                     border: "none",
-                    background: "#16a34a",
+                    background:
+                      gradebook.rows.length === 0
+                        ? "rgba(139,108,245,0.25)"
+                        : "linear-gradient(135deg,#6d5df0,#8b6cf5)",
                     color: "#fff",
                     fontWeight: 700,
                     fontSize: 13,
-                    cursor: "pointer",
+                    cursor: gradebook.rows.length === 0 ? "not-allowed" : "pointer",
+                    opacity: gradebook.rows.length === 0 ? 0.6 : 1,
                   }}
                 >
                   <Download size={15} />
@@ -291,23 +382,45 @@ export default function Exams() {
                 </button>
               </div>
 
-              <div style={{ ...cardStyle, marginBottom: 20 }}>
-                <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700, color: "#111827" }}>
-                  Class {selectedClass} — Exams
+              {/* Exams for this class */}
+              <div
+                style={{
+                  background: "linear-gradient(160deg,#151233,#181341)",
+                  border: "1px solid rgba(139,108,245,0.25)",
+                  borderRadius: 20,
+                  padding: "20px 24px",
+                  marginBottom: 20,
+                }}
+              >
+                <h3
+                  style={{
+                    margin: "0 0 14px",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <BookOpen size={16} color="#8B5CF6" /> Fasalka {selectedClass} — Imtixaanada
                 </h3>
                 {examsForClass.length === 0 ? (
-                  <p style={{ fontSize: 13, color: "#9CA3AF" }}>Imtixaano lama helin fasalkan.</p>
+                  <p style={{ fontSize: 13, color: "#8b87ad", margin: 0 }}>
+                    Weli imtixaano lama diiwaan gelin fasalkan.
+                  </p>
                 ) : (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                     {examsForClass.map((e) => (
                       <span
                         key={e.id}
                         style={{
-                          background: "#F3F4F6",
+                          background: "rgba(139,108,245,0.1)",
+                          border: "1px solid rgba(139,108,245,0.25)",
                           padding: "8px 14px",
                           borderRadius: 20,
                           fontSize: 12.5,
-                          color: "#374151",
+                          color: "#c4b8f7",
                           fontWeight: 600,
                         }}
                       >
@@ -318,74 +431,119 @@ export default function Exams() {
                 )}
               </div>
 
-              <div style={{ ...cardStyle, overflowX: "auto" }}>
-                <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700, color: "#111827" }}>
-                  Class {selectedClass} — Results (Excel-style Gradebook)
+              {/* Gradebook */}
+              <div
+                style={{
+                  background: "linear-gradient(160deg,#151233,#181341)",
+                  border: "1px solid rgba(139,108,245,0.25)",
+                  borderRadius: 20,
+                  padding: "20px 24px",
+                }}
+              >
+                <h3
+                  style={{
+                    margin: "0 0 14px",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <ClipboardList size={16} color="#8B5CF6" /> Fasalka {selectedClass} — Natiijooyinka
+                  (Gradebook)
                 </h3>
 
                 {gradebook.rows.length === 0 ? (
-                  <p style={{ fontSize: 13, color: "#9CA3AF" }}>Ardayda fasalkan lama helin.</p>
+                  <p style={{ fontSize: 13, color: "#8b87ad", margin: 0 }}>
+                    Weli arday looma diiwaan gelin fasalkan.
+                  </p>
                 ) : (
-                  <table
-                    style={{
-                      width: "100%",
-                      borderCollapse: "collapse",
-                      fontSize: 13,
-                      minWidth: 560 + gradebook.subjects.length * 110,
-                    }}
-                  >
-                    <thead>
-                      <tr>
-                        <th style={thStyle}>Student Name</th>
-                        {gradebook.subjects.map((subj) => (
-                          <th key={subj} style={thStyle}>
-                            {subj}
-                          </th>
-                        ))}
-                        <th style={thStyle}>Total</th>
-                        <th style={thStyle}>Average</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {gradebook.rows.map((row, idx) => (
-                        <tr
-                          key={row.studentId}
-                          style={{
-                            background: idx % 2 === 0 ? "#fff" : "#FAFBFC",
-                          }}
-                        >
-                          <td style={{ ...tdStyle, fontWeight: 700, color: "#111827", position: "sticky", left: 0, background: idx % 2 === 0 ? "#fff" : "#FAFBFC" }}>
-                            {row.fullName}
-                          </td>
-                          {gradebook.subjects.map((subj) => {
-                            const cell = row.bySubject[subj];
-                            return (
-                              <td key={subj} style={tdStyle}>
-                                {cell ? `${cell.marks}/${cell.maxMarks}` : "—"}
-                              </td>
-                            );
-                          })}
-                          <td style={{ ...tdStyle, fontWeight: 700 }}>
-                            {row.totalMarks}/{row.totalMax}
-                          </td>
-                          <td style={tdStyle}>
-                            <span
-                              style={{
-                                background: row.average >= 50 ? "#DCFCE7" : "#FEE2E2",
-                                color: row.average >= 50 ? "#16A34A" : "#DC2626",
-                                fontSize: 12,
-                                fontWeight: 700,
-                                padding: "4px 12px",
-                                borderRadius: 20,
-                              }}
-                            >
-                              {row.average}%
-                            </span>
-                          </td>
+                  <div className="ex-table-wrap">
+                    <table
+                      style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                        fontSize: 13,
+                        minWidth: 560 + gradebook.subjects.length * 110,
+                      }}
+                    >
+                      <thead>
+                        <tr>
+                          <ExamTh sticky>Ardayga</ExamTh>
+                          {gradebook.subjects.map((subj) => (
+                            <ExamTh key={subj}>{subj}</ExamTh>
+                          ))}
+                          <ExamTh>Total</ExamTh>
+                          <ExamTh>Average</ExamTh>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {gradebook.rows.map((row) => (
+                          <tr
+                            key={row.studentId}
+                            style={{ borderTop: "1px solid rgba(139,108,245,0.12)" }}
+                          >
+                            <ExamTd sticky bold>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <div
+                                  style={{
+                                    width: 26,
+                                    height: 26,
+                                    borderRadius: "50%",
+                                    background: "linear-gradient(135deg,#6D5DF0,#8B5CF6)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: "#fff",
+                                    fontWeight: 700,
+                                    fontSize: 11,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {(row.fullName || "?").charAt(0).toUpperCase()}
+                                </div>
+                                {row.fullName}
+                              </div>
+                            </ExamTd>
+                            {gradebook.subjects.map((subj) => {
+                              const cell = row.bySubject[subj];
+                              return (
+                                <ExamTd key={subj}>
+                                  {cell ? `${cell.marks}/${cell.maxMarks}` : "—"}
+                                </ExamTd>
+                              );
+                            })}
+                            <ExamTd bold>
+                              {row.totalMarks}/{row.totalMax}
+                            </ExamTd>
+                            <ExamTd>
+                              {row.hasAnyResult ? (
+                                <span
+                                  style={{
+                                    background:
+                                      row.average >= 50
+                                        ? "rgba(34,197,94,0.15)"
+                                        : "rgba(239,68,68,0.15)",
+                                    color: row.average >= 50 ? "#22C55E" : "#EF4444",
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    padding: "4px 12px",
+                                    borderRadius: 20,
+                                  }}
+                                >
+                                  {row.average}%
+                                </span>
+                              ) : (
+                                <span style={{ color: "#8b87ad" }}>—</span>
+                              )}
+                            </ExamTd>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             </div>
@@ -396,20 +554,37 @@ export default function Exams() {
   );
 }
 
-const thStyle = {
-  textAlign: "left",
-  fontWeight: 700,
-  fontSize: 12,
-  color: "#6B7280",
-  padding: "10px 14px",
-  borderBottom: "2px solid #E5E7EB",
-  whiteSpace: "nowrap",
-  background: "#F9FAFB",
-};
+function ExamTh({ children, sticky }) {
+  return (
+    <th
+      style={{
+        textAlign: "left",
+        padding: "10px 14px",
+        color: "#8b87ad",
+        fontSize: 12,
+        fontWeight: 700,
+        whiteSpace: "nowrap",
+        ...(sticky ? { position: "sticky", left: 0, background: "#181341" } : {}),
+      }}
+    >
+      {children}
+    </th>
+  );
+}
 
-const tdStyle = {
-  padding: "12px 14px",
-  borderBottom: "1px solid #F3F4F6",
-  color: "#374151",
-  whiteSpace: "nowrap",
-};
+function ExamTd({ children, sticky, bold }) {
+  return (
+    <td
+      style={{
+        padding: "10px 14px",
+        color: "#e5e3f7",
+        fontSize: 13,
+        fontWeight: bold ? 700 : 400,
+        whiteSpace: "nowrap",
+        ...(sticky ? { position: "sticky", left: 0, background: "#181341" } : {}),
+      }}
+    >
+      {children}
+    </td>
+  );
+}
