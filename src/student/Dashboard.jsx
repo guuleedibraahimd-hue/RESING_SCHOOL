@@ -69,6 +69,84 @@ function ResponsiveStyles() {
       .rs-mobile-topbar { display: none; }
       .rs-day-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; }
 
+      .rs-idcard-wrap { display: flex; justify-content: center; padding: 20px 0; }
+      .rs-idcard {
+        width: 420px;
+        max-width: 100%;
+        border-radius: 20px;
+        overflow: hidden;
+        background: #ffffff;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+        position: relative;
+        font-family: 'Inter','Segoe UI',system-ui,sans-serif;
+      }
+      .rs-idcard-topband {
+        position: relative;
+        height: 96px;
+        background: linear-gradient(120deg, #123a7a 0%, #1c4fa1 45%, #d9622b 100%);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 20px;
+        overflow: hidden;
+      }
+      .rs-idcard-logo {
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+        font-size: 22px;
+      }
+      .rs-idcard-schoolname { color: #fff; font-weight: 800; font-size: 15px; line-height: 1.25; letter-spacing: 0.3px; }
+      .rs-idcard-body { padding: 22px 24px 24px; }
+      .rs-idcard-cardtitle { font-size: 20px; font-weight: 800; color: #1c2b4a; margin-bottom: 16px; letter-spacing: 0.4px; }
+      .rs-idcard-contentrow { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+      .rs-idcard-fields { display: flex; flex-direction: column; gap: 9px; }
+      .rs-idcard-field { font-size: 13.5px; color: #1c2b4a; }
+      .rs-idcard-field b { display: inline-block; min-width: 88px; color: #4a5670; font-weight: 700; }
+      .rs-idcard-photo {
+        width: 96px;
+        height: 112px;
+        border-radius: 12px;
+        object-fit: cover;
+        border: 2px solid #d9622b;
+        flex-shrink: 0;
+        background: ${COLORS.panelSoft};
+      }
+      .rs-idcard-photo-placeholder {
+        width: 96px;
+        height: 112px;
+        border-radius: 12px;
+        border: 2px dashed #c7cede;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #a7b0c4;
+        font-size: 11px;
+        text-align: center;
+        padding: 6px;
+      }
+      .rs-idcard-footer {
+        margin-top: 18px;
+        padding-top: 14px;
+        border-top: 1px dashed #e1e5ee;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 12px;
+      }
+      .rs-idcard-dates { font-size: 11.5px; color: #6b7690; line-height: 1.5; }
+      .rs-idcard-band-bottom {
+        height: 10px;
+        background: linear-gradient(90deg, #123a7a, #1c4fa1);
+      }
+
       @media (max-width: 860px) {
         .rs-layout { flex-direction: column; }
         .rs-sidebar { display: none; }
@@ -92,6 +170,7 @@ function ResponsiveStyles() {
         .rs-panel { padding: 16px; border-radius: 14px; }
         .rs-stat-value { font-size: 20px !important; }
         .rs-h1 { font-size: 22px !important; }
+        .rs-idcard { width: 100%; }
 
         .rs-bottom-nav {
           display: flex;
@@ -146,6 +225,7 @@ function ResponsiveStyles() {
 
 const NAV_ITEMS = [
   { key: "overview", label: "Overview", icon: "🏠" },
+  { key: "idCard", label: "ID Card", icon: "🪪" },
   { key: "timetable", label: "Timetable", icon: "🗓️" },
   { key: "examTimetable", label: "Exam Timetable", icon: "📝" },
   { key: "results", label: "Results", icon: "📄" },
@@ -153,6 +233,86 @@ const NAV_ITEMS = [
   { key: "payments", label: "Payments", icon: "💳" },
   { key: "messages", label: "Messages", icon: "💬" },
 ];
+
+// Formats a Firestore createdAt (or plain date-ish value) into DD/MM/YYYY
+function formatDate(d) {
+  if (!d) return null;
+  const dateObj = d.seconds ? new Date(d.seconds * 1000) : new Date(d);
+  if (isNaN(dateObj.getTime())) return null;
+  const day = String(dateObj.getDate()).padStart(2, "0");
+  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const year = dateObj.getFullYear();
+  return { day, month, year, str: `${day}/${month}/${year}` };
+}
+
+function StudentIdCard({ student, studentId }) {
+  const issued = formatDate(student?.createdAt);
+  let expiryStr = "—";
+  if (issued) {
+    // Card valid for 1 year from issue date
+    const expiryDate = new Date(
+      Number(issued.year) + 1,
+      Number(issued.month) - 1,
+      Number(issued.day)
+    );
+    expiryStr = `${String(expiryDate.getDate()).padStart(2, "0")}/${String(
+      expiryDate.getMonth() + 1
+    ).padStart(2, "0")}/${expiryDate.getFullYear()}`;
+  }
+
+  return (
+    <div className="rs-idcard-wrap">
+      <div className="rs-idcard">
+        <div className="rs-idcard-topband">
+          <div className="rs-idcard-logo">🎓</div>
+          <div className="rs-idcard-schoolname">
+            RISING STAR
+            <br />
+            SCHOOL
+          </div>
+        </div>
+
+        <div className="rs-idcard-body">
+          <div className="rs-idcard-cardtitle">STUDENT ID CARD</div>
+
+          <div className="rs-idcard-contentrow">
+            <div className="rs-idcard-fields">
+              <div className="rs-idcard-field">
+                <b>NAME</b> {student?.fullName || "—"}
+              </div>
+              <div className="rs-idcard-field">
+                <b>STUDENT ID</b> {studentId || "—"}
+              </div>
+              <div className="rs-idcard-field">
+                <b>CLASS</b> {student?.className || "—"}
+              </div>
+            </div>
+
+            {student?.studentPhoto ? (
+              <img
+                className="rs-idcard-photo"
+                src={student.studentPhoto}
+                alt={student.fullName || "Student"}
+              />
+            ) : (
+              <div className="rs-idcard-photo-placeholder">No Photo</div>
+            )}
+          </div>
+
+          <div className="rs-idcard-footer">
+            <div className="rs-idcard-dates">
+              ISSUED DATE: {issued?.str || "—"}
+              <br />
+              EXPIRY DATE: {expiryStr}
+            </div>
+          </div>
+        </div>
+
+        <div className="rs-idcard-band-bottom" />
+      </div>
+    </div>
+  );
+}
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -491,6 +651,17 @@ export default function StudentDashboard() {
                   <Detail label="Student phone" value={student?.studentPhone} />
                 </div>
               </div>
+            </section>
+          )}
+
+          {/* Student ID Card — auto-generated from the student's own record,
+              nothing typed by the student. Admin/teacher only enters
+              fullName, className and studentPhoto when registering; this
+              tab simply renders those fields into the card design. */}
+          {tab === "idCard" && (
+            <section className="rs-panel" style={styles.panel}>
+              <div style={styles.panelTitle}>My Student ID Card</div>
+              <StudentIdCard student={student} studentId={studentId} />
             </section>
           )}
 
