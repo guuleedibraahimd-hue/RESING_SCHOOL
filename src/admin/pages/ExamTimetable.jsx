@@ -207,10 +207,14 @@ export default function ExamTimetable() {
   const [saving, setSaving] = useState(false);
   const [teachers, setTeachers] = useState({}); // id -> { fullName, subject, classes }
   const [examDocs, setExamDocs] = useState({}); // `${className}__${day}` -> { slots: [] }
+  const [examWeekDates, setExamWeekDates] = useState({}); // className -> { startDate, endDate }
   const [selectedClass, setSelectedClass] = useState(null);
   const [activeDay, setActiveDay] = useState(DAYS[0].key);
   const [draftSlots, setDraftSlots] = useState([]);
   const [dirty, setDirty] = useState(false);
+  const [draftStartDate, setDraftStartDate] = useState("");
+  const [draftEndDate, setDraftEndDate] = useState("");
+  const [savingDates, setSavingDates] = useState(false);
 
   useEffect(() => {
     load();
@@ -219,9 +223,10 @@ export default function ExamTimetable() {
   async function load() {
     try {
       setLoading(true);
-      const [teachersSnap, examSnap] = await Promise.all([
+      const [teachersSnap, examSnap, examWeekSnap] = await Promise.all([
         getDocs(collection(db, "teachers")),
         getDocs(collection(db, "examTimetable")),
+        getDocs(collection(db, "examWeek")),
       ]);
 
       const teacherMap = {};
@@ -240,6 +245,12 @@ export default function ExamTimetable() {
         examMap[d.id] = d.data();
       });
       setExamDocs(examMap);
+
+      const weekMap = {};
+      examWeekSnap.docs.forEach((d) => {
+        weekMap[d.id] = d.data();
+      });
+      setExamWeekDates(weekMap);
     } catch (err) {
       console.log(err);
       alert("Khalad ayaa dhacay marka xogta la soo qaadanayay: " + err.message);
@@ -278,9 +289,62 @@ export default function ExamTimetable() {
     setDirty(false);
   }, [selectedClass, activeDay, examDocs]);
 
+  useEffect(() => {
+    if (!selectedClass) return;
+    const wk = examWeekDates[selectedClass];
+    setDraftStartDate(wk?.startDate || "");
+    setDraftEndDate(wk?.endDate || "");
+  }, [selectedClass, examWeekDates]);
+
   function openClass(cls) {
     setSelectedClass(cls);
     setActiveDay(DAYS[0].key);
+  }
+
+  // ---- Kaydiyo taariikhda bilowga iyo dhamaadka usbuuca imtixaanka
+  // fasalkan, kuna qor ardayda fasalkaas si Student/Parent Dashboard-ku
+  // si toos ah uga soo aqriyo. ----
+  async function saveExamWeekDates() {
+    if (!selectedClass) return;
+    if (!draftStartDate || !draftEndDate) {
+      alert("Fadlan geli labada taariikh — bilowga iyo dhamaadka imtixaanka.");
+      return;
+    }
+    if (draftEndDate < draftStartDate) {
+      alert("Taariikhda dhamaadka waa inay ka dambaysaa ama la mid tahay tan bilowga.");
+      return;
+    }
+
+    setSavingDates(true);
+    try {
+      const payload = {
+        className: selectedClass,
+        startDate: draftStartDate,
+        endDate: draftEndDate,
+        updatedAt: new Date(),
+      };
+      await setDoc(doc(db, "examWeek", selectedClass), payload);
+      setExamWeekDates((prev) => ({ ...prev, [selectedClass]: payload }));
+
+      const studentsSnap = await getDocs(
+        query(collection(db, "students"), where("className", "==", selectedClass))
+      );
+      if (!studentsSnap.empty) {
+        const batch = writeBatch(db);
+        studentsSnap.docs.forEach((studentDoc) => {
+          batch.update(doc(db, "students", studentDoc.id), {
+            examWeekStartDate: draftStartDate,
+            examWeekEndDate: draftEndDate,
+          });
+        });
+        await batch.commit();
+      }
+    } catch (err) {
+      console.log(err);
+      alert("Khalad ayaa dhacay marka taariikhda la kaydinayay: " + err.message);
+    } finally {
+      setSavingDates(false);
+    }
   }
 
   function updateSlot(index, field, value) {
@@ -513,6 +577,25 @@ export default function ExamTimetable() {
                       >
                         <Clock size={13} /> {slotCount} Imtixaan
                       </span>
+                      {examWeekDates[cls]?.startDate && (
+                        <span
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            background: "rgba(34,197,94,0.1)",
+                            border: "1px solid rgba(34,197,94,0.3)",
+                            borderRadius: 20,
+                            padding: "5px 12px",
+                            color: "#4ADE80",
+                            fontSize: 11.5,
+                            fontWeight: 600,
+                          }}
+                        >
+                          <CalendarDays size={13} /> {examWeekDates[cls].startDate} →{" "}
+                          {examWeekDates[cls].endDate}
+                        </span>
+                      )}
                     </div>
 
                     <span
@@ -618,6 +701,80 @@ export default function ExamTimetable() {
                 <div style={{ fontWeight: 700, color: "#fff", fontSize: 18 }}>
                   Fasalka: {selectedClass}
                 </div>
+              </div>
+
+              {/* Exam week date range */}
+              <div
+                style={{
+                  background: "linear-gradient(160deg,#151233,#181341)",
+                  border: "1px solid rgba(139,108,245,0.25)",
+                  borderRadius: 16,
+                  padding: "16px 20px",
+                  marginBottom: 18,
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: 14,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ flex: "1 1 160px" }}>
+                  <div style={{ color: "#8b87ad", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                    Taariikhda Bilowga Imtixaanka
+                  </div>
+                  <input
+                    type="date"
+                    value={draftStartDate}
+                    onChange={(e) => setDraftStartDate(e.target.value)}
+                    style={fieldStyle}
+                  />
+                </div>
+                <div style={{ flex: "1 1 160px" }}>
+                  <div style={{ color: "#8b87ad", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                    Taariikhda Dhamaadka Imtixaanka
+                  </div>
+                  <input
+                    type="date"
+                    value={draftEndDate}
+                    onChange={(e) => setDraftEndDate(e.target.value)}
+                    style={fieldStyle}
+                  />
+                </div>
+                <button
+                  onClick={saveExamWeekDates}
+                  disabled={savingDates}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "10px 18px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: savingDates
+                      ? "rgba(139,108,245,0.35)"
+                      : "linear-gradient(135deg,#6d5df0,#8b6cf5)",
+                    color: "#fff",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: savingDates ? "not-allowed" : "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  {savingDates ? <Loader2 size={15} /> : <CalendarDays size={15} />}
+                  {savingDates ? "Kaydinaya..." : "Kaydi Taariikhda"}
+                </button>
+
+                {examWeekDates[selectedClass]?.startDate && (
+                  <div style={{ width: "100%", color: "#c4b8f7", fontSize: 12.5, marginTop: 4 }}>
+                    Imtixaanku wuxuu bilaabmayaa{" "}
+                    <strong style={{ color: "#fff" }}>
+                      {examWeekDates[selectedClass].startDate}
+                    </strong>{" "}
+                    wuxuuna dhammaanayaa{" "}
+                    <strong style={{ color: "#fff" }}>
+                      {examWeekDates[selectedClass].endDate}
+                    </strong>
+                  </div>
+                )}
               </div>
 
               {/* Day tabs (Sabti -> Arbaco) */}
