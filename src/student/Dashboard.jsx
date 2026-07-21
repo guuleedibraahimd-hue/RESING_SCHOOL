@@ -1,3 +1,4 @@
+//src/student/Dashboard.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -42,6 +43,14 @@ function groupByClass(items) {
   );
 }
 
+const DAYS = [
+  { key: "Saturday", label: "Saturday" },
+  { key: "Sunday", label: "Sunday" },
+  { key: "Monday", label: "Monday" },
+  { key: "Tuesday", label: "Tuesday" },
+  { key: "Wednesday", label: "Wednesday" },
+];
+
 // Injects the responsive/media-query behavior that inline styles can't express.
 function ResponsiveStyles() {
   return (
@@ -58,6 +67,7 @@ function ResponsiveStyles() {
       .rs-header { display:flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; gap: 12px; }
       .rs-bottom-nav { display: none; }
       .rs-mobile-topbar { display: none; }
+      .rs-day-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; }
 
       @media (max-width: 860px) {
         .rs-layout { flex-direction: column; }
@@ -93,9 +103,11 @@ function ResponsiveStyles() {
           border-top: 1px solid ${COLORS.border};
           padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
           z-index: 30;
+          overflow-x: auto;
         }
         .rs-bottom-nav-item {
           flex: 1;
+          min-width: 60px;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -103,9 +115,10 @@ function ResponsiveStyles() {
           background: transparent;
           border: none;
           color: ${COLORS.textDim};
-          font-size: 11px;
+          font-size: 10.5px;
           padding: 6px 2px;
           position: relative;
+          white-space: nowrap;
         }
         .rs-bottom-nav-item.active { color: ${COLORS.accent}; }
         .rs-bottom-dot {
@@ -133,6 +146,8 @@ function ResponsiveStyles() {
 
 const NAV_ITEMS = [
   { key: "overview", label: "Overview", icon: "🏠" },
+  { key: "timetable", label: "Timetable", icon: "🗓️" },
+  { key: "examTimetable", label: "Exam Timetable", icon: "📝" },
   { key: "results", label: "Results", icon: "📄" },
   { key: "attendance", label: "Attendance", icon: "📅" },
   { key: "payments", label: "Payments", icon: "💳" },
@@ -151,6 +166,13 @@ export default function StudentDashboard() {
   const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
 
+  // Regular class timetable + exam timetable (read-only, keyed by day)
+  const [timetableByDay, setTimetableByDay] = useState({});
+  const [examTimetableByDay, setExamTimetableByDay] = useState({});
+  const [examWeek, setExamWeek] = useState(null);
+  const [activeTimetableDay, setActiveTimetableDay] = useState(DAYS[0].key);
+  const [activeExamDay, setActiveExamDay] = useState(DAYS[0].key);
+
   useEffect(() => {
     if (!studentId) {
       navigate("/student-login");
@@ -160,8 +182,11 @@ export default function StudentDashboard() {
     const load = async () => {
       try {
         const studentSnap = await getDoc(doc(db, "students", studentId));
+        let className = null;
         if (studentSnap.exists()) {
-          setStudent({ id: studentSnap.id, ...studentSnap.data() });
+          const data = { id: studentSnap.id, ...studentSnap.data() };
+          setStudent(data);
+          className = data.className;
         }
 
         try {
@@ -175,6 +200,50 @@ export default function StudentDashboard() {
           setAttendance([]);
         }
 
+        // Load the regular class timetable (timetable collection, doc id
+        // `${className}__${day}`), one document per day.
+        if (className) {
+          try {
+            const ttMap = {};
+            await Promise.all(
+              DAYS.map(async (d) => {
+                const snap = await getDoc(
+                  doc(db, "timetable", `${className}__${d.key}`)
+                );
+                if (snap.exists()) ttMap[d.key] = snap.data();
+              })
+            );
+            setTimetableByDay(ttMap);
+          } catch (e) {
+            setTimetableByDay({});
+          }
+
+          // Load the exam timetable (examTimetable collection, doc id
+          // `${className}__${day}`) — kept fully separate from the
+          // regular timetable above.
+          try {
+            const examMap = {};
+            await Promise.all(
+              DAYS.map(async (d) => {
+                const snap = await getDoc(
+                  doc(db, "examTimetable", `${className}__${d.key}`)
+                );
+                if (snap.exists()) examMap[d.key] = snap.data();
+              })
+            );
+            setExamTimetableByDay(examMap);
+          } catch (e) {
+            setExamTimetableByDay({});
+          }
+
+          // Load the exam week date range (examWeek/{className}), if set.
+          try {
+            const wkSnap = await getDoc(doc(db, "examWeek", className));
+            if (wkSnap.exists()) setExamWeek(wkSnap.data());
+          } catch (e) {
+            setExamWeek(null);
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -422,6 +491,152 @@ export default function StudentDashboard() {
                   <Detail label="Student phone" value={student?.studentPhone} />
                 </div>
               </div>
+            </section>
+          )}
+
+          {/* Regular weekly class timetable — read-only, separate from exam timetable */}
+          {tab === "timetable" && (
+            <section className="rs-panel" style={styles.panel}>
+              <div style={styles.panelTitle}>Class Timetable — {student?.className || "—"}</div>
+              <div className="rs-day-tabs">
+                {DAYS.map((d) => {
+                  const isActive = d.key === activeTimetableDay;
+                  const hasData = (timetableByDay[d.key]?.sessions || []).length > 0;
+                  return (
+                    <button
+                      key={d.key}
+                      onClick={() => setActiveTimetableDay(d.key)}
+                      style={{
+                        ...styles.dayTabBtn,
+                        ...(isActive ? styles.dayTabBtnActive : {}),
+                      }}
+                    >
+                      {d.label}
+                      {hasData && (
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            background: isActive ? "#fff" : COLORS.accent,
+                            marginLeft: 6,
+                            display: "inline-block",
+                          }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {(() => {
+                const sessions = [...(timetableByDay[activeTimetableDay]?.sessions || [])].sort(
+                  (a, b) => (a.startTime || "").localeCompare(b.startTime || "")
+                );
+                if (sessions.length === 0) {
+                  return <EmptyState text="No timetable set for this day yet." />;
+                }
+                return (
+                  <div className="rs-table-wrap">
+                    <table className="rs-table" style={styles.table}>
+                      <thead>
+                        <tr>
+                          <th style={styles.th}>#</th>
+                          <th style={styles.th}>Start</th>
+                          <th style={styles.th}>End</th>
+                          <th style={styles.th}>Subject</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sessions.map((s) => (
+                          <tr key={s.id}>
+                            <td style={styles.td}>{s.sessionNumber}</td>
+                            <td style={styles.td}>{s.startTime}</td>
+                            <td style={styles.td}>{s.endTime}</td>
+                            <td style={styles.td}>{s.subject || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+            </section>
+          )}
+
+          {/* Exam timetable — its own tab, separate collection/data from the regular timetable */}
+          {tab === "examTimetable" && (
+            <section className="rs-panel" style={styles.panel}>
+              <div style={styles.panelTitle}>Exam Timetable — {student?.className || "—"}</div>
+              {examWeek?.startDate && (
+                <div style={{ color: COLORS.textDim, fontSize: 13, marginBottom: 14 }}>
+                  Exams run from <strong style={{ color: COLORS.text }}>{examWeek.startDate}</strong>{" "}
+                  to <strong style={{ color: COLORS.text }}>{examWeek.endDate}</strong>
+                </div>
+              )}
+              <div className="rs-day-tabs">
+                {DAYS.map((d) => {
+                  const isActive = d.key === activeExamDay;
+                  const hasData = (examTimetableByDay[d.key]?.slots || []).length > 0;
+                  return (
+                    <button
+                      key={d.key}
+                      onClick={() => setActiveExamDay(d.key)}
+                      style={{
+                        ...styles.dayTabBtn,
+                        ...(isActive ? styles.dayTabBtnActive : {}),
+                      }}
+                    >
+                      {d.label}
+                      {hasData && (
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            background: isActive ? "#fff" : COLORS.warn,
+                            marginLeft: 6,
+                            display: "inline-block",
+                          }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {(() => {
+                const slots = [...(examTimetableByDay[activeExamDay]?.slots || [])].sort(
+                  (a, b) => (a.startTime || "").localeCompare(b.startTime || "")
+                );
+                if (slots.length === 0) {
+                  return <EmptyState text="No exam scheduled for this day." />;
+                }
+                return (
+                  <div className="rs-table-wrap">
+                    <table className="rs-table" style={styles.table}>
+                      <thead>
+                        <tr>
+                          <th style={styles.th}>#</th>
+                          <th style={styles.th}>Start</th>
+                          <th style={styles.th}>End</th>
+                          <th style={styles.th}>Subject</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {slots.map((s) => (
+                          <tr key={s.id}>
+                            <td style={styles.td}>{s.examNumber}</td>
+                            <td style={styles.td}>{s.startTime}</td>
+                            <td style={styles.td}>{s.endTime}</td>
+                            <td style={styles.td}>{s.subject || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </section>
           )}
 
@@ -820,4 +1035,22 @@ const styles = {
   },
   messageTitle: { fontWeight: 600, marginBottom: 6, fontSize: 14 },
   messageBody: { fontSize: 13, color: COLORS.textDim, lineHeight: 1.5 },
+  dayTabBtn: {
+    flexShrink: 0,
+    display: "flex",
+    alignItems: "center",
+    padding: "9px 16px",
+    borderRadius: 10,
+    border: `1px solid ${COLORS.border}`,
+    background: COLORS.panelSoft,
+    color: COLORS.textDim,
+    fontWeight: 600,
+    fontSize: 13,
+    cursor: "pointer",
+  },
+  dayTabBtnActive: {
+    background: COLORS.accent,
+    borderColor: COLORS.accent,
+    color: "#06231a",
+  },
 };
