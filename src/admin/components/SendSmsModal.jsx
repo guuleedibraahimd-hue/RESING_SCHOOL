@@ -29,6 +29,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 
 const AUDIENCES = [
   { id: "all_parents", label: "Dhamaan Waalidiinta", icon: Users, needsPicker: false },
+  { id: "one_parent", label: "Waalid Gaar ah", icon: User, needsPicker: "students" },
   { id: "all_teachers", label: "Dhamaan Macalimiinta", icon: Users, needsPicker: false },
   { id: "one_teacher", label: "Macalin Gaar ah", icon: User, needsPicker: "teachers" },
   { id: "all_students", label: "Dhamaan Ardayda", icon: GraduationCap, needsPicker: false },
@@ -272,7 +273,7 @@ export default function SendSmsModal({ onClose }) {
           {currentAudience.needsPicker === "students" && (
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6, display: "block" }}>
-                Dooro Ardayga
+                {audience === "one_parent" ? "Dooro Ardayga (si loo helo Waalidkiisa)" : "Dooro Ardayga"}
               </label>
               <input
                 type="text"
@@ -299,6 +300,16 @@ export default function SendSmsModal({ onClose }) {
                   </option>
                 ))}
               </select>
+              {audience === "one_parent" && targetId && (
+                <div style={{ fontSize: 12, color: "#6B7280", marginTop: 6 }}>
+                  {(() => {
+                    const s = students.find((st) => st.id === targetId);
+                    return s?.parentPhone
+                      ? `SMS-ku wuxuu ku baxayaa: ${s.parentPhone}`
+                      : "⚠️ Ardaygan lambar waalid ah lama duubin (parentPhone).";
+                  })()}
+                </div>
+              )}
             </div>
           )}
 

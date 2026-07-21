@@ -161,6 +161,15 @@ async function resolveRecipients(audience, targetId) {
     });
   }
 
+  if (audience === "one_parent" && targetId) {
+    const doc = await db.collection("students").doc(targetId).get();
+    if (doc.exists) {
+      const d = doc.data();
+      const phone = cleanPhone(d.parentPhone);
+      if (phone) recipients.push({ phone, label: `Parent of ${d.fullName || doc.id}` });
+    }
+  }
+
   if (audience === "all_teachers" || audience === "one_teacher") {
     const snap = audience === "one_teacher" && targetId
       ? [await db.collection("teachers").doc(targetId).get()]
@@ -203,9 +212,10 @@ async function resolveRecipients(audience, targetId) {
  *   const sendBulkSms = httpsCallable(functions, "sendBulkSms");
  *   await sendBulkSms({ audience: "all_parents", message: "..." });
  *
- * audience: "all_parents" | "all_teachers" | "one_teacher" |
+ * audience: "all_parents" | "one_parent" | "all_teachers" | "one_teacher" |
  *           "all_students" | "one_student"
- * targetId: Firestore doc id, required only for "one_teacher"/"one_student"
+ * targetId: Firestore doc id, required for "one_parent" (student's doc id),
+ *           "one_teacher", and "one_student"
  * message:  the SMS text
  */
 exports.sendBulkSms = onCall(
