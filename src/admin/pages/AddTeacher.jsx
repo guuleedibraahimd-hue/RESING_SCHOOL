@@ -54,6 +54,7 @@ export default function AddTeacher() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [parentName, setParentName] = useState("");
   const [parentPhoneNumber, setParentPhoneNumber] = useState("");
 
   const [classBlocks, setClassBlocks] = useState([emptyClassBlock()]);
@@ -186,6 +187,11 @@ export default function AddTeacher() {
       return;
     }
 
+    if (parentName === "") {
+      alert("Fadlan geli magaca waalidka");
+      return;
+    }
+
     if (parentPhoneNumber === "") {
       alert("Fadlan geli numbarka waalidka");
       return;
@@ -203,6 +209,7 @@ export default function AddTeacher() {
         username,
         password,
         phoneNumber,
+        parentName,
         parentPhoneNumber,
         classes: classBlocks,
         createdAt: serverTimestamp(),
@@ -296,6 +303,17 @@ export default function AddTeacher() {
                 placeholder="Tusaale: 0615XXXXXX"
                 value={parentPhoneNumber}
                 onChange={(e) => setParentPhoneNumber(e.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div style={topGrid}>
+            <Field icon={User} label="Magaca Waalidka">
+              <input
+                style={input}
+                placeholder="Tusaale: Xasan Cali"
+                value={parentName}
+                onChange={(e) => setParentName(e.target.value)}
               />
             </Field>
           </div>
