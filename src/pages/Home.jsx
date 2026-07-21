@@ -1,16 +1,10 @@
+// src/pages/Home.jsx
 import "../styles/home.css";
 import logo from "../assets/logo.png";
 import { Link } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
 
 const ROLES = [
-  {
-    key: "admin",
-    to: "/admin-login",
-    emoji: "👑",
-    title: "ADMIN",
-    desc: "Manage the entire school system and settings",
-    cta: "Go to Admin Panel",
-  },
   {
     key: "teacher",
     to: "/teacher-login",
@@ -55,6 +49,19 @@ const FEATURES = [
 ];
 
 export default function Home() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <div className="home">
       <header className="home-header">
@@ -66,10 +73,31 @@ export default function Home() {
           </div>
         </div>
 
-        <a className="help-pill" href="#help">
-          <span className="help-icon">?</span>
-          Need Help?
-        </a>
+        <div className="header-actions">
+          <a className="help-pill" href="#help">
+            <span className="help-icon">?</span>
+            Need Help?
+          </a>
+
+          <div className="menu-wrap" ref={menuRef}>
+            <button
+              type="button"
+              className="dots-btn"
+              aria-label="More options"
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              ⋮
+            </button>
+
+            {menuOpen && (
+              <div className="dots-menu">
+                <Link to="/admin-login" className="dots-menu-item">
+                  👑 Admin Login
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
       </header>
 
       <section className="hero">
