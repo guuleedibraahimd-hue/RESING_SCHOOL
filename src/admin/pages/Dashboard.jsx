@@ -937,7 +937,7 @@ export default function Dashboard() {
             {teachersList.length > 0 && (
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 480 }}>
                 <thead>
-                  <tr style={{ color: "#9CA3AF", textAlign: "left" }}>
+                  <tr style={{ color: "#9da6b4", textAlign: "left" }}>
                     <th style={{ fontWeight: 600, paddingBottom: 8 }}>Full Name</th>
                     <th style={{ fontWeight: 600, paddingBottom: 8 }}>Subject</th>
                     <th style={{ fontWeight: 600, paddingBottom: 8 }}>Username</th>
