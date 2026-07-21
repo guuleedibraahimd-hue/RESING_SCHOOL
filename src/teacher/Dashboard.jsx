@@ -1,8 +1,8 @@
-// src/teacher/Dashboard.jsx
+ // src/teacher/Dashboard.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../firebase/firebase";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import {
   GraduationCap,
   Users,
@@ -14,10 +14,12 @@ import {
   School,
   Mail,
   MailOpen,
+  IdCard,
 } from "lucide-react";
 
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import TeacherIdCard from "./TeacherIdCard";
 import { useMessages } from "../context/MessagesContext"; // Hubi path-kan
 
 function DashboardStyles() {
@@ -65,11 +67,14 @@ export default function Dashboard() {
   const { allMessages, markAsRead } = useMessages();
 
   const [teacherName, setTeacherName] = useState("Teacher");
+  const [teacherUsername, setTeacherUsername] = useState("");
+  const [teacherData, setTeacherData] = useState(null);
   const [classes, setClasses] = useState([]);
   const [totalStudents, setTotalStudents] = useState(0);
   const [presentToday, setPresentToday] = useState(0);
   const [absentToday, setAbsentToday] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showIdCard, setShowIdCard] = useState(false);
 
   useEffect(() => {
     loadDashboard();
@@ -79,9 +84,29 @@ export default function Dashboard() {
     try {
       setLoading(true);
 
+      // teacherId stored in localStorage at login time IS the teacher's
+      // Firestore document id, which is also their login username
+      // (e.g. "moodir1"). We use this as the "Teacher ID" shown on the
+      // ID card, and load the full teacher doc for the card's other
+      // fields (fullName, phone, subjects, createdAt, fatherName, photo).
       const id = localStorage.getItem("teacherId") || "";
+      setTeacherUsername(id);
+
       const teacherNameStored = localStorage.getItem("teacherName");
       if (teacherNameStored) setTeacherName(teacherNameStored);
+
+      if (id) {
+        try {
+          const teacherSnap = await getDoc(doc(db, "teachers", id));
+          if (teacherSnap.exists()) {
+            const data = teacherSnap.data();
+            setTeacherData(data);
+            if (data.fullName) setTeacherName(data.fullName);
+          }
+        } catch (e) {
+          setTeacherData(null);
+        }
+      }
 
       const classesSnap = await getDocs(
         query(collection(db, "classes"), where("teacherId", "==", id))
@@ -214,6 +239,54 @@ export default function Dashboard() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* My ID Card */}
+            <div
+              className="td-panel"
+              style={{
+                background: "#0B1120",
+                borderRadius: 20,
+                padding: 24,
+                marginBottom: 24,
+                border: "1px solid rgba(255,255,255,.06)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <IdCard size={20} color="#8B5CF6" />
+                  <h3 style={{ margin: 0, color: "#fff" }}>My Teacher ID Card</h3>
+                </div>
+                <button
+                  onClick={() => setShowIdCard((v) => !v)}
+                  style={{
+                    background: "none",
+                    border: "1px solid rgba(139,92,246,.4)",
+                    color: "#8B5CF6",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: "bold",
+                    borderRadius: 10,
+                    padding: "8px 16px",
+                  }}
+                >
+                  {showIdCard ? "Hide ID Card" : "View / Print ID Card"}
+                </button>
+              </div>
+
+              {showIdCard && (
+                <div style={{ marginTop: 16 }}>
+                  <TeacherIdCard teacher={teacherData} teacherUsername={teacherUsername} />
+                </div>
+              )}
             </div>
 
             {/* Fariimaha ugu dambeeyay */}

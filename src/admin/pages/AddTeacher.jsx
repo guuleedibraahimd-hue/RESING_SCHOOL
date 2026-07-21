@@ -204,13 +204,26 @@ export default function AddTeacher() {
     try {
       setSaving(true);
 
+      // Dhammaan maadooyinka la doortay ee fasalada oo dhan, oo mid-mid
+      // (unique), si card-ka Teacher ID uu u tuso "SUBJECT" oo sax ah.
+      const uniqueSubjects = [
+        ...new Set(
+          classBlocks
+            .map((b) => (b.subject || "").trim())
+            .filter((s) => s.length > 0)
+        ),
+      ];
+
       await setDoc(doc(db, "teachers", username), {
         fullName,
         username,
         password,
         phoneNumber,
+        phone: phoneNumber, // TeacherIdCard.jsx expects `phone`
         parentName,
+        fatherName: parentName, // TeacherIdCard.jsx expects `fatherName`
         parentPhoneNumber,
+        subjects: uniqueSubjects, // TeacherIdCard.jsx expects `subjects`
         classes: classBlocks,
         createdAt: serverTimestamp(),
       });
