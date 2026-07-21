@@ -1,3 +1,4 @@
+// src/admin/pages/AddTeacher.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -15,6 +16,8 @@ import {
   X,
   Clock,
   Loader2,
+  Phone,
+  Users,
 } from "lucide-react";
 
 const weekDays = [
@@ -50,6 +53,8 @@ export default function AddTeacher() {
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [parentPhoneNumber, setParentPhoneNumber] = useState("");
 
   const [classBlocks, setClassBlocks] = useState([emptyClassBlock()]);
   const [saving, setSaving] = useState(false);
@@ -176,6 +181,16 @@ export default function AddTeacher() {
       return;
     }
 
+    if (phoneNumber === "") {
+      alert("Fadlan geli numbarka macalinka");
+      return;
+    }
+
+    if (parentPhoneNumber === "") {
+      alert("Fadlan geli numbarka waalidka");
+      return;
+    }
+
     if (!validateSessions()) {
       return;
     }
@@ -187,6 +202,8 @@ export default function AddTeacher() {
         fullName,
         username,
         password,
+        phoneNumber,
+        parentPhoneNumber,
         classes: classBlocks,
         createdAt: serverTimestamp(),
       });
@@ -257,6 +274,28 @@ export default function AddTeacher() {
                 placeholder="Tusaale: cabdi.macalin"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div style={topGrid}>
+            <Field icon={Phone} label="Numbarka Macalinka">
+              <input
+                style={input}
+                type="tel"
+                placeholder="Tusaale: 0615XXXXXX"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+              />
+            </Field>
+
+            <Field icon={Users} label="Numbarka Waalidka">
+              <input
+                style={input}
+                type="tel"
+                placeholder="Tusaale: 0615XXXXXX"
+                value={parentPhoneNumber}
+                onChange={(e) => setParentPhoneNumber(e.target.value)}
               />
             </Field>
           </div>
