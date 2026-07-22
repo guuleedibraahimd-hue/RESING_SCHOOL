@@ -35,6 +35,9 @@ const menus = [
   { name: "Settings", icon: Settings, path: "/admin/settings" },
 ];
 
+const SUPPORT_WHATSAPP = "252617390261"; // international format, no + or leading 0
+const SUPPORT_EMAIL = "risingstar0261@gmail.com";
+
 export default function Sidebar() {
   return (
     <aside
@@ -158,7 +161,10 @@ export default function Sidebar() {
           <div style={{ fontSize: 12, color: "#4b5563", marginTop: 2 }}>
             We're here to help you
           </div>
-          <button
+          <a
+            href={`https://wa.me/${SUPPORT_WHATSAPP}`}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
               marginTop: 12,
               width: "100%",
@@ -170,10 +176,33 @@ export default function Sidebar() {
               fontWeight: 700,
               fontSize: 12.5,
               cursor: "pointer",
+              display: "block",
+              textAlign: "center",
+              textDecoration: "none",
             }}
           >
             Contact Support
-          </button>
+          </a>
+          <a
+            href={`mailto:${SUPPORT_EMAIL}`}
+            style={{
+              marginTop: 8,
+              width: "100%",
+              padding: "9px 0",
+              borderRadius: 10,
+              border: "1px solid rgba(22,163,74,0.3)",
+              background: "transparent",
+              color: "#16a34a",
+              fontWeight: 700,
+              fontSize: 12.5,
+              cursor: "pointer",
+              display: "block",
+              textAlign: "center",
+              textDecoration: "none",
+            }}
+          >
+            Email Support
+          </a>
         </div>
       </div>
     </aside>
