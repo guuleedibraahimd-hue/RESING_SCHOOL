@@ -23,6 +23,8 @@ import AddTeacher from "./admin/pages/AddTeacher";
 import AddCashier from "./admin/pages/AddCashier";
 import Cashiers from "./admin/pages/Cashiers";
 import Messages from "./admin/pages/Messages";
+import EditTeacher from "./admin/pages/EditTeacher";
+
 
 // STUDENT / PARENT
 import StudentDashboard from "./student/Dashboard";
@@ -66,6 +68,7 @@ function App() {
         <Route path="/admin/add-teacher" element={<AddTeacher />} />
         <Route path="/admin/add-cashier" element={<AddCashier />} />
         <Route path="/admin/cashiers" element={<Cashiers />} />
+        <Route path="/admin/edit-teacher/:username" element={<EditTeacher />} />
 
         <Route path="/admin/students" element={<Students />} />
         <Route path="/admin/teachers" element={<Teachers />} />
