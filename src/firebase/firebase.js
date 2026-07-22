@@ -1,28 +1,28 @@
-//src/firebase/firebase.js
+// src/firebase/firebase.js
+
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
 /* ===========================================================
-   Rising School ERP
-   Firestore + Authentication
+   RISING STAR SCHOOL
+   (Project ID = one-click-online)
 =========================================================== */
 
-const resingConfig = {
-  apiKey: "API_KEY_GAAGA",
-  authDomain: "resing-school-erp.firebaseapp.com",
-  projectId: "resing-school-erp",
-  storageBucket: "resing-school-erp.firebasestorage.app",
-  messagingSenderId: "165001325650",
-  appId: "1:165001325650:web:9190a1fea4e3459418438b",
+const firebaseConfig = {
+  apiKey: "AIzaSyBXFegVGIYVk02zY6Ks3DhcoWjomNw_ht0",
+  authDomain: "one-click-online.firebaseapp.com",
+  projectId: "one-click-online",
+  storageBucket: "one-click-online.firebasestorage.app",
+  messagingSenderId: "988928725446",
+  appId: "1:988928725446:web:81f45c1187bc048343a2c7",
 };
 
-const resingApp = initializeApp(resingConfig, "resing");
+const app = initializeApp(firebaseConfig);
 
 /* ===========================================================
    GALLAD TECH STORAGE
-   Storage Only
 =========================================================== */
 
 const galladConfig = {
@@ -36,13 +36,8 @@ const galladConfig = {
 
 const galladApp = initializeApp(galladConfig, "gallad");
 
-/* ===========================================================
-   EXPORTS
-=========================================================== */
-
-export const db = getFirestore(resingApp);
-export const auth = getAuth(resingApp);
-
+export const db = getFirestore(app);
+export const auth = getAuth(app);
 export const storage = getStorage(galladApp);
 
-export default resingApp;
+export default app;
