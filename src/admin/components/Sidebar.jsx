@@ -14,6 +14,7 @@ import {
   CalendarDays,
   FileEdit,
   HelpCircle,
+  Settings,
 } from "lucide-react";
 
 import logo from "../assets/logo.png";
@@ -31,6 +32,7 @@ const menus = [
   { name: "Add Cashier", icon: Wallet, path: "/admin/add-cashier" },
   { name: "Messages", icon: MessageCircle, path: "/admin/messages" },
   { name: "Reports", icon: BarChart3, path: "/admin/reports" },
+  { name: "Settings", icon: Settings, path: "/admin/settings" },
 ];
 
 export default function Sidebar() {
