@@ -2,9 +2,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { db } from "../../firebase/firebase";
+import { db, storage } from "../../firebase/firebase";
 
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   GraduationCap,
   User,
@@ -18,6 +19,7 @@ import {
   Loader2,
   Phone,
   Users,
+  Camera,
 } from "lucide-react";
 
 const weekDays = [
@@ -60,8 +62,37 @@ export default function AddTeacher() {
   // Nooca shaqada macalinka -- Full Time ama Part Time
   const [employmentType, setEmploymentType] = useState("");
 
+  // Sawirka macalinka -- file-ka la doortay + preview-ga muuqda ka hor
+  // inta aan la kaydin, waxaana la soo geliyaa Firebase Storage marka
+  // "Abuur Macalin" la riixo.
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
   const [classBlocks, setClassBlocks] = useState([emptyClassBlock()]);
   const [saving, setSaving] = useState(false);
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Fadlan dooro sawir sax ah (jpg, png, iwm)");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Sawirku waa inuu ka yaraadaa 5MB");
+      return;
+    }
+
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const removePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+  };
 
   const updateClassBlock = (index, field, value) => {
     const updated = [...classBlocks];
@@ -212,6 +243,22 @@ export default function AddTeacher() {
     try {
       setSaving(true);
 
+      // Haddii sawir la doortay, marka hore u soo geli Firebase Storage,
+      // kadibna soo qaado URL-ka uu ku kaydsan yahay -- kani ayaa loo
+      // kaydiyaa sida `teacherPhoto` (field-ka uu TeacherIdCard.jsx filayo).
+      let teacherPhotoUrl = "";
+      if (photoFile) {
+        setUploadingPhoto(true);
+        const fileExt = photoFile.name.split(".").pop();
+        const photoRef = ref(
+          storage,
+          `teacherPhotos/${username}-${Date.now()}.${fileExt}`
+        );
+        await uploadBytes(photoRef, photoFile);
+        teacherPhotoUrl = await getDownloadURL(photoRef);
+        setUploadingPhoto(false);
+      }
+
       // Dhammaan maadooyinka la doortay ee fasalada oo dhan, oo mid-mid
       // (unique), si card-ka Teacher ID uu u tuso "SUBJECT" oo sax ah.
       const uniqueSubjects = [
@@ -233,6 +280,7 @@ export default function AddTeacher() {
         parentPhoneNumber,
         employmentType, // "Full Time" ama "Part Time"
         subjects: uniqueSubjects, // TeacherIdCard.jsx expects `subjects`
+        teacherPhoto: teacherPhotoUrl, // TeacherIdCard.jsx expects `teacherPhoto`
         classes: classBlocks,
         createdAt: serverTimestamp(),
       });
@@ -244,6 +292,7 @@ export default function AddTeacher() {
       alert(err.message);
     } finally {
       setSaving(false);
+      setUploadingPhoto(false);
     }
   };
 
@@ -287,6 +336,44 @@ export default function AddTeacher() {
         </div>
 
         <form onSubmit={saveTeacher}>
+          {/* ---- Sawirka Macalinka ---- */}
+          <div style={{ marginBottom: 26 }}>
+            <label style={label}>
+              <Camera size={15} color="#8b6cf5" />
+              Sawirka Macalinka <span style={{ color: "#8b87ad", fontWeight: 400 }}>(ikhtiyaari)</span>
+            </label>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+              <div style={photoPreviewBox}>
+                {photoPreview ? (
+                  <img src={photoPreview} alt="Preview" style={photoPreviewImg} />
+                ) : (
+                  <Camera size={26} color="#5a5680" />
+                )}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <label style={uploadBtn}>
+                  {photoPreview ? "Bedel Sawirka" : "Soo Geli Sawir"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    style={{ display: "none" }}
+                  />
+                </label>
+                {photoPreview && (
+                  <button type="button" onClick={removePhoto} style={removePhotoBtn}>
+                    <X size={13} /> Ka saar sawirka
+                  </button>
+                )}
+                <span style={{ fontSize: 11.5, color: "#6b6890" }}>
+                  JPG ama PNG, ugu badnaan 5MB
+                </span>
+              </div>
+            </div>
+          </div>
+
           <div style={topGrid}>
             <Field icon={User} label="Magaca Macalinka">
               <input
@@ -549,7 +636,7 @@ export default function AddTeacher() {
             {saving ? (
               <>
                 <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />
-                Kaydinaya...
+                {uploadingPhoto ? "Sawirka waa la soo gelinayaa..." : "Kaydinaya..."}
               </>
             ) : (
               <>
@@ -793,4 +880,51 @@ const removeSessionBtn = {
   alignItems: "center",
   justifyContent: "center",
   marginBottom: 10,
+};
+
+const photoPreviewBox = {
+  width: 88,
+  height: 88,
+  borderRadius: 14,
+  border: "1.5px dashed rgba(139,108,245,0.4)",
+  background: "rgba(255,255,255,0.02)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  overflow: "hidden",
+  flexShrink: 0,
+};
+
+const photoPreviewImg = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+};
+
+const uploadBtn = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "rgba(139,108,245,0.12)",
+  border: "1px solid rgba(139,108,245,0.4)",
+  color: "#8b6cf5",
+  borderRadius: 9,
+  padding: "9px 16px",
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+const removePhotoBtn = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 5,
+  background: "rgba(239,68,68,0.12)",
+  border: "1px solid rgba(239,68,68,0.3)",
+  color: "#f87171",
+  cursor: "pointer",
+  fontSize: 12,
+  borderRadius: 8,
+  padding: "6px 10px",
+  width: "fit-content",
 };
