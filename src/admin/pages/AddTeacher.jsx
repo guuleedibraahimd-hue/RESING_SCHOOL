@@ -229,7 +229,7 @@ export default function AddTeacher() {
         phoneNumber,
         phone: phoneNumber, // TeacherIdCard.jsx expects `phone`
         parentName,
-        fatherName: parentName, // TeacherIdCard.jsx expects `fatherName`
+        matherName: parentName, // TeacherIdCard.jsx expects `matherName`
         parentPhoneNumber,
         employmentType, // "Full Time" ama "Part Time"
         subjects: uniqueSubjects, // TeacherIdCard.jsx expects `subjects`
