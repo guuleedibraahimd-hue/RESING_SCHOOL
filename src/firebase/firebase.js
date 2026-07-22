@@ -33,15 +33,16 @@ const galladConfig = {
   appId: "1:492970437433:web:17249ff78baca4e86b56e8",
 };
 
+// ✅ FIX: risingApp hada si sax ah ayaa loo initialize gareeynaa
+const risingApp = initializeApp(firebaseConfig, "rising");
 const galladApp = initializeApp(galladConfig, "gallad");
 
 /* ===========================================================
    EXPORTS
 =========================================================== */
 
-export const db = getFirestore(risingApp);
-export const auth = getAuth(risingApp);
-
-export const storage = getStorage(galladApp);
+export const db = getFirestore(risingApp);       // Firestore - one-click-onilne
+export const auth = getAuth(risingApp);           // Auth - login/password - one-click-onilne
+export const storage = getStorage(galladApp);     // Storage - Gallad Tech
 
 export default risingApp;
