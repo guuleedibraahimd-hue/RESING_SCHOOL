@@ -1,256 +1,181 @@
-// src/admin/pages/EditTeacher.jsx
-// Lets the admin fill in / fix the fields an existing teacher is missing
-// for their ID card (fatherName, phone, subjects), plus fullName/username.
-// Loads the teacher by their Firestore doc id (= username) and updates
-// only the relevant fields, without touching classes/password.
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { db } from "../../firebase/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+// Sidebar.jsx
+import { NavLink } from "react-router-dom";
 import {
+  LayoutDashboard,
   GraduationCap,
-  User,
   Users,
-  Phone,
-  BookOpen,
-  Loader2,
-  Save,
+  School,
+  Wallet,
+  UserPlus,
+  MessageCircle,
+  BarChart3,
+  CalendarCheck,
+  ClipboardList,
+  CalendarDays,
+  FileEdit,
+  HelpCircle,
+  Settings,
 } from "lucide-react";
 
-export default function EditTeacher() {
-  const { username } = useParams();
-  const navigate = useNavigate();
+import logo from "../assets/logo.png";
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [notFound, setNotFound] = useState(false);
+const menus = [
+  { name: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
+  { name: "Students", icon: GraduationCap, path: "/admin/students" },
+  { name: "Teachers", icon: Users, path: "/admin/teachers" },
+  { name: "Parents", icon: Users, path: "/admin/parents" },
+  { name: "Classes", icon: School, path: "/admin/classes" },
+  { name: "Attendance", icon: CalendarCheck, path: "/admin/attendance" },
+  { name: "Exams", icon: ClipboardList, path: "/admin/exams" },
+  { name: "Timetable", icon: CalendarDays, path: "/admin/timetable" },
+  { name: "Exam Timetable", icon: FileEdit, path: "/admin/exam-timetable" },
+  { name: "Add Cashier", icon: Wallet, path: "/admin/add-cashier" },
+  { name: "Messages", icon: MessageCircle, path: "/admin/messages" },
+  { name: "Reports", icon: BarChart3, path: "/admin/reports" },
+  { name: "Settings", icon: Settings, path: "/admin/settings" },
+];
 
-  const [fullName, setFullName] = useState("");
-  const [fatherName, setFatherName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [subjectsText, setSubjectsText] = useState("");
-
-  useEffect(() => {
-    loadTeacher();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [username]);
-
-  const loadTeacher = async () => {
-    try {
-      setLoading(true);
-      const snap = await getDoc(doc(db, "teachers", username));
-      if (!snap.exists()) {
-        setNotFound(true);
-        return;
-      }
-      const data = snap.data();
-      setFullName(data.fullName || "");
-      setFatherName(data.fatherName || data.parentName || "");
-      setPhone(data.phone || data.phoneNumber || "");
-      const subjects = Array.isArray(data.subjects) ? data.subjects : [];
-      setSubjectsText(subjects.join(", "));
-    } catch (err) {
-      console.log(err);
-      alert(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const save = async (e) => {
-    e.preventDefault();
-
-    if (!fullName.trim()) {
-      alert("Fadlan geli magaca macalinka");
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      const uniqueSubjects = [
-        ...new Set(
-          subjectsText
-            .split(",")
-            .map((s) => s.trim())
-            .filter((s) => s.length > 0)
-        ),
-      ];
-
-      await updateDoc(doc(db, "teachers", username), {
-        fullName,
-        fatherName,
-        parentName: fatherName, // keep old field in sync too
-        phone,
-        phoneNumber: phone, // keep old field in sync too
-        subjects: uniqueSubjects,
-      });
-
-      alert("Macluumaadka macalinka waa la cusboonaysiiyay");
-      navigate("/admin/teachers");
-    } catch (err) {
-      console.log(err);
-      alert(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div style={{ background: "#0b0a1c", minHeight: "100vh", padding: 30, color: "#a9a6c4" }}>
-        Loading...
-      </div>
-    );
-  }
-
-  if (notFound) {
-    return (
-      <div style={{ background: "#0b0a1c", minHeight: "100vh", padding: 30, color: "#f87171" }}>
-        Macalinkan lama helin (username: {username})
-      </div>
-    );
-  }
-
+export default function Sidebar() {
   return (
-    <div style={{ background: "#0b0a1c", minHeight: "100vh", padding: "30px" }}>
-      <div
-        style={{
-          background: "linear-gradient(160deg,#151233,#181341)",
-          borderRadius: 24,
-          padding: "36px 40px",
-          border: "1px solid rgba(139,108,245,0.25)",
-          maxWidth: 700,
-          margin: "0 auto",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
+    <aside
+      style={{
+        width: 270,
+        minHeight: "100vh",
+        background: "#ffffff",
+        color: "#111827",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        borderRight: "1px solid rgba(15,61,46,0.08)",
+      }}
+    >
+      <div>
+        {/* Logo */}
+        <div
+          style={{
+            padding: "24px 25px 20px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
           <div
             style={{
-              width: 52,
-              height: 52,
-              minWidth: 52,
-              borderRadius: 14,
-              background: "linear-gradient(135deg,#6d5df0,#8b6cf5)",
+              width: 46,
+              height: 46,
+              borderRadius: 12,
+              background: "#ffffff",
+              border: "1px solid rgba(15,61,46,0.12)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 8px 20px rgba(109,93,240,0.3)",
+              flexShrink: 0,
+              overflow: "hidden",
             }}
           >
-            <GraduationCap color="#fff" size={26} />
+            <img
+              src={logo}
+              alt=""
+              style={{
+                width: "80%",
+                height: "80%",
+                objectFit: "contain",
+              }}
+            />
           </div>
+
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#fff" }}>
-              Wax ka beddel Macalinka
-            </h1>
-            <p style={{ margin: "4px 0 0", color: "#8b87ad", fontSize: 13.5 }}>
-              Username: <strong style={{ color: "#8b6cf5" }}>{username}</strong> — buuxi fields-ka
-              ID Card-ka u baahan yahay.
-            </p>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 16,
+                fontWeight: 800,
+                color: "#14532d",
+                lineHeight: 1.2,
+                letterSpacing: "0.01em",
+              }}
+            >
+              RESING SCHOOL
+            </h2>
+            <small style={{ color: "#9CA3AF", fontSize: 11.5 }}>
+              School Management ERP System
+            </small>
           </div>
         </div>
 
-        <form onSubmit={save}>
-          <Field icon={User} label="Magaca Macalinka">
-            <input style={input} value={fullName} onChange={(e) => setFullName(e.target.value)} />
-          </Field>
+        {/* Menu */}
+        <div style={{ padding: "8px 18px", overflowY: "auto" }}>
+          {menus.map((item) => {
+            const Icon = item.icon;
 
-          <div style={{ height: 18 }} />
-
-          <Field icon={Users} label="Father's Name (Magaca Aabaha)">
-            <input style={input} value={fatherName} onChange={(e) => setFatherName(e.target.value)} />
-          </Field>
-
-          <div style={{ height: 18 }} />
-
-          <Field icon={Phone} label="Phone Number">
-            <input style={input} value={phone} onChange={(e) => setPhone(e.target.value)} />
-          </Field>
-
-          <div style={{ height: 18 }} />
-
-          <Field icon={BookOpen} label="Subjects (comma-separated, tusaale: Mathematics, English)">
-            <input
-              style={input}
-              value={subjectsText}
-              onChange={(e) => setSubjectsText(e.target.value)}
-              placeholder="Mathematics, English"
-            />
-          </Field>
-
-          <button type="submit" disabled={saving} style={submitBtn}>
-            {saving ? (
-              <>
-                <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} />
-                Kaydinaya...
-              </>
-            ) : (
-              <>
-                <Save size={18} />
-                Kaydi Isbeddelka
-              </>
-            )}
-          </button>
-        </form>
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                style={({ isActive }) => ({
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 14,
+                  padding: "12px 18px",
+                  marginBottom: 4,
+                  textDecoration: "none",
+                  color: isActive ? "#fff" : "#4b5563",
+                  borderRadius: 12,
+                  transition: "all .2s ease",
+                  fontWeight: isActive ? 700 : 500,
+                  fontSize: 14,
+                  background: isActive
+                    ? "linear-gradient(90deg,#16a34a,#15803d)"
+                    : "transparent",
+                  boxShadow: isActive
+                    ? "0 8px 16px rgba(22,163,74,0.25)"
+                    : "none",
+                })}
+              >
+                <Icon size={18} />
+                <span>{item.name}</span>
+              </NavLink>
+            );
+          })}
+        </div>
       </div>
 
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        input::placeholder { color: #6b6890; }
-      `}</style>
-    </div>
+      {/* Help card */}
+      <div style={{ padding: 20 }}>
+        <div
+          style={{
+            background: "linear-gradient(145deg,#EFFBF3,#E6F5EC)",
+            border: "1px solid rgba(22,163,74,0.15)",
+            borderRadius: 18,
+            padding: "20px 18px",
+            textAlign: "center",
+          }}
+        >
+          <HelpCircle size={30} color="#16a34a" style={{ marginBottom: 8 }} />
+          <div style={{ fontWeight: 700, fontSize: 13.5, color: "#14532d" }}>
+            Need Help?
+          </div>
+          <div style={{ fontSize: 12, color: "#4b5563", marginTop: 2 }}>
+            We're here to help you
+          </div>
+          <button
+            style={{
+              marginTop: 12,
+              width: "100%",
+              padding: "9px 0",
+              borderRadius: 10,
+              border: "none",
+              background: "#16a34a",
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 12.5,
+              cursor: "pointer",
+            }}
+          >
+            Contact Support
+          </button>
+        </div>
+      </div>
+    </aside>
   );
 }
-
-function Field({ icon: Icon, label: labelText, children }) {
-  return (
-    <div>
-      <label style={label}>
-        <Icon size={15} color="#8b6cf5" />
-        {labelText}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-const label = {
-  display: "flex",
-  alignItems: "center",
-  gap: 7,
-  fontSize: 14,
-  fontWeight: 600,
-  color: "#fff",
-  marginBottom: 8,
-};
-
-const input = {
-  width: "100%",
-  padding: "12px 14px",
-  borderRadius: 10,
-  border: "1.5px solid rgba(139,108,245,0.3)",
-  boxSizing: "border-box",
-  fontSize: 14,
-  color: "#e5e3f7",
-  background: "rgba(255,255,255,0.02)",
-  outline: "none",
-};
-
-const submitBtn = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 10,
-  background: "linear-gradient(90deg,#6d5df0,#8b6cf5)",
-  color: "#fff",
-  border: "none",
-  padding: "16px",
-  width: "100%",
-  borderRadius: 14,
-  fontWeight: 700,
-  cursor: "pointer",
-  fontSize: 15,
-  boxShadow: "0 10px 24px rgba(109,93,240,0.35)",
-  marginTop: 28,
-};
