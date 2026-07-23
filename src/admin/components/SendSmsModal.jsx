@@ -4,7 +4,6 @@ import { X, Send, Users, GraduationCap, User, CheckCircle2, XCircle } from "luci
 import { db } from "../../firebase/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { app } from "../../firebase/firebase";
 import app from "../../firebase/firebase";
 
 
