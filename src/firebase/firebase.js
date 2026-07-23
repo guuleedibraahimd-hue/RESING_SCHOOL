@@ -8,7 +8,7 @@ import { getFunctions } from "firebase/functions";
 
 /* ===========================================================
    RISING STAR SCHOOL (NEW DATABASE)
-   Project ID = one-click-online
+   Project ID = one-click-onilne
 =========================================================== */
 
 const firebaseConfig = {

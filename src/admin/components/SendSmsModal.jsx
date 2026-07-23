@@ -5,6 +5,8 @@ import { db } from "../../firebase/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { app } from "../../firebase/firebase";
+import app from "../../firebase/firebase";
+
 
 /**
  * SendSmsModal
@@ -50,6 +52,7 @@ export default function SendSmsModal({ onClose }) {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null); // { successCount, failCount, results }
   const [errorMsg, setErrorMsg] = useState("");
+  const functions = getFunctions(app);
 
   const currentAudience = AUDIENCES.find((a) => a.id === audience);
 

@@ -1,10 +1,25 @@
 // src/teacher/TeacherIdCard.jsx
+import React from "react";
 // Renders the official Rising Star School Teacher ID card — front + back —
 // matching the printed reference design exactly. Pulls all data straight
 // from the teacher's own Firestore record (fullName, username, phone,
-// subjects, createdAt, teacherPhoto). The "Teacher ID" shown on the card
-// is the teacher's login username (e.g. "moodir1"), exactly as stored in
-// Firestore doc id / username field — nothing is typed by the teacher.
+// subjects, createdAt, teacherPhoto / photoUrl).
+//
+// FIX (2026-07-23):
+// 1) "TEACHER ID" now shows the official registration-style ID
+//    (e.g. "RSPS/T/0001") instead of the raw login username ("guul1").
+//    It reads teacher.teacherRegNo / teacher.idNumber / teacher.regNo if
+//    that field exists in Firestore already. If it doesn't exist yet,
+//    it falls back to auto-generating "RSPS/T/00xx" from teacher.teacherIndex
+//    (a numeric field) or, as a last resort, from the numeric part of the
+//    username — but NEVER shows the raw username itself.
+// 2) The photo box was showing a broken image / wrong logo because some
+//    teacher docs only have `photoUrl` (base64 data URI) while others have
+//    `teacherPhoto` (Firebase Storage https URL) — and some docs have BOTH,
+//    with one of them broken. getTeacherPhotoSrc() now tries every known
+//    field, in priority order, and the <img> tag has an onError handler
+//    that automatically falls through to the next candidate at render
+//    time, so a bad/expired URL in one field no longer blanks the photo.
 
 const SCHOOL = {
   name1: "RISING STAR",
@@ -27,6 +42,53 @@ function formatDate(d) {
   const month = months[dateObj.getMonth()];
   const year = dateObj.getFullYear();
   return { day, month, year, str: `${day} ${month} ${year}` };
+}
+
+// ---------------------------------------------------------------------
+// Official Teacher ID (e.g. "RSPS/T/0001")
+// ---------------------------------------------------------------------
+// Priority:
+//  1. An explicit field already stored in Firestore under one of these
+//     names (use whichever your admin panel writes to).
+//  2. Auto-build "RSPS/T/00xx" from a numeric index field.
+//  3. Auto-build from any digits found inside the username (e.g. "guul1" -> 1).
+//  4. Fallback to "—" (never shows the raw username).
+function getOfficialTeacherId(teacher, teacherUsername) {
+  const explicit =
+    teacher?.teacherRegNo ||
+    teacher?.teacherIdNumber ||
+    teacher?.idNumber ||
+    teacher?.regNo ||
+    teacher?.employeeId;
+
+  if (explicit) return explicit;
+
+  const numericIndex =
+    teacher?.teacherIndex ??
+    teacher?.teacherNumber ??
+    teacher?.index;
+
+  if (numericIndex !== undefined && numericIndex !== null && numericIndex !== "") {
+    const n = String(numericIndex).padStart(4, "0");
+    return `RSPS/T/${n}`;
+  }
+
+  const digitsInUsername = (teacherUsername || "").match(/\d+/);
+  if (digitsInUsername) {
+    const n = digitsInUsername[0].padStart(4, "0");
+    return `RSPS/T/${n}`;
+  }
+
+  return "—";
+}
+
+// ---------------------------------------------------------------------
+// Teacher photo — try every known field, in priority order.
+// ---------------------------------------------------------------------
+function getPhotoCandidates(teacher) {
+  return [teacher?.teacherPhoto, teacher?.photoUrl, teacher?.photo, teacher?.imageUrl].filter(
+    (v) => typeof v === "string" && v.trim().length > 0
+  );
 }
 
 function CardStyles() {
@@ -494,6 +556,28 @@ function BandBottom() {
   );
 }
 
+// Photo component with automatic fallback across every candidate field.
+// If the current src fails to load (broken URL, expired token, CORS,
+// wrong content type, etc.) it advances to the next candidate instead
+// of leaving a blank/wrong image in place.
+function TeacherPhoto({ teacher, fullNameText }) {
+  const candidates = getPhotoCandidates(teacher);
+  const [idx, setIdx] = React.useState(0);
+
+  if (candidates.length === 0 || idx >= candidates.length) {
+    return <div className="tidc-photo-placeholder">No Photo</div>;
+  }
+
+  return (
+    <img
+      className="tidc-photo"
+      src={candidates[idx]}
+      alt={fullNameText}
+      onError={() => setIdx((i) => i + 1)}
+    />
+  );
+}
+
 function CardFront({ teacher, teacherUsername }) {
   const joined = formatDate(teacher?.createdAt);
   const subjectText = Array.isArray(teacher?.subjects)
@@ -516,6 +600,8 @@ function CardFront({ teacher, teacherUsername }) {
     teacher?.name ||
     [teacher?.firstName, teacher?.lastName].filter(Boolean).join(" ") ||
     "—";
+
+  const officialTeacherId = getOfficialTeacherId(teacher, teacherUsername);
 
   const qrValue = encodeURIComponent(`https://${SCHOOL.website}`);
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=0&data=${qrValue}`;
@@ -550,7 +636,7 @@ function CardFront({ teacher, teacherUsername }) {
               <span className="tidc-field-icon">🪪</span>
               <span className="tidc-field-label">TEACHER ID</span>
               <span className="tidc-field-colon">:</span>
-              <span className="tidc-field-value">{teacherUsername || "—"}</span>
+              <span className="tidc-field-value">{officialTeacherId}</span>
             </div>
             <div className="tidc-field-row">
               <span className="tidc-field-icon">👤</span>
@@ -586,11 +672,7 @@ function CardFront({ teacher, teacherUsername }) {
 
           <div className="tidc-photo-col">
             <div className="tidc-photo-wrap">
-              {teacher?.teacherPhoto ? (
-                <img className="tidc-photo" src={teacher.teacherPhoto} alt={fullNameText} />
-              ) : (
-                <div className="tidc-photo-placeholder">No Photo</div>
-              )}
+              <TeacherPhoto teacher={teacher} fullNameText={fullNameText} />
             </div>
 
             <div className="tidc-signature-block">
