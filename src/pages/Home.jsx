@@ -134,7 +134,7 @@ export default function Home() {
       <section className="hero">
         <div className="hero-copy">
           <p className="hero-eyebrow">Welcome to</p>
-          <h1 className="hero-title">RISING SCHOOL</h1>
+          <h1 className="hero-title">RISING STAR PRIMARY & SECONDARY SCHOOL</h1>
           <h2 className="hero-subtitle">School Management  System</h2>
           <div className="hero-rule" />
           <p className="hero-lede">
