@@ -86,7 +86,12 @@ function getOfficialTeacherId(teacher, teacherUsername) {
 // Teacher photo — try every known field, in priority order.
 // ---------------------------------------------------------------------
 function getPhotoCandidates(teacher) {
-  return [teacher?.teacherPhoto, teacher?.photoUrl, teacher?.photo, teacher?.imageUrl].filter(
+  // photoUrl (base64 data URI, uploaded directly through the teacher's own
+  // profile form) has proven to reliably hold the correct photo. teacherPhoto
+  // (a Firebase Storage https URL) can point at a stale or wrong file that
+  // still loads successfully — so it no longer takes priority; it's kept
+  // only as a fallback for older records that never got a photoUrl.
+  return [teacher?.photoUrl, teacher?.teacherPhoto, teacher?.photo, teacher?.imageUrl].filter(
     (v) => typeof v === "string" && v.trim().length > 0
   );
 }
@@ -791,10 +796,17 @@ export default function TeacherIdCard({ teacher, teacherUsername }) {
     const frontHtml = frontEl.outerHTML;
     const backHtml = backEl.outerHTML;
 
-    // Grab only the card's own <style> block (rendered by <CardStyles/>),
-    // not every style tag on the host page — prevents unrelated app
-    // styles from leaking into the print window.
-    const cardStyleTag = document.querySelector("style");
+    // Grab only the card's own <style> block (rendered by <CardStyles/>).
+    // The dashboard page can render several other components (Sidebar,
+    // Topbar, etc.) that also inject their own <style> tags, so blindly
+    // grabbing the page's FIRST <style> tag was unreliable — it could grab
+    // an unrelated component's styles instead of the card's, breaking the
+    // print layout. Instead, search every <style> tag on the page for the
+    // one that actually contains the card's own CSS class.
+    const allStyleTags = Array.from(document.querySelectorAll("style"));
+    const cardStyleTag = allStyleTags.find((tag) =>
+      tag.textContent.includes(".tidc-card")
+    );
     const stylesHtml = cardStyleTag ? cardStyleTag.outerHTML : "";
 
     printWindow.document.write(`
