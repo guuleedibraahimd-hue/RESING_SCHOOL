@@ -654,11 +654,18 @@ export default function TeacherIdCard({ teacher, teacherUsername }) {
     const printWindow = window.open("", "_blank", "width=900,height=650");
     if (!printWindow) return;
 
-    const frontHtml = document.getElementById("tidc-print-front")?.outerHTML || "";
-    const backHtml = document.getElementById("tidc-print-back")?.outerHTML || "";
-    const stylesHtml = Array.from(document.querySelectorAll("style"))
-      .map((s) => s.outerHTML)
-      .join("\n");
+    const frontEl = document.getElementById("tidc-print-front");
+    const backEl = document.getElementById("tidc-print-back");
+    if (!frontEl || !backEl) return;
+
+    const frontHtml = frontEl.outerHTML;
+    const backHtml = backEl.outerHTML;
+
+    // Grab only the card's own <style> block (rendered by <CardStyles/>),
+    // not every style tag on the host page — prevents unrelated app
+    // styles from leaking into the print window.
+    const cardStyleTag = document.querySelector("style");
+    const stylesHtml = cardStyleTag ? cardStyleTag.outerHTML : "";
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -668,8 +675,22 @@ export default function TeacherIdCard({ teacher, teacherUsername }) {
           <meta charset="utf-8" />
           ${stylesHtml}
           <style>
-            body { margin: 0; padding: 24px; display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; background: #eee; font-family: sans-serif; }
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+            body {
+              margin: 0;
+              padding: 24px;
+              display: flex;
+              gap: 24px;
+              flex-wrap: wrap;
+              justify-content: center;
+              background: #eee;
+              font-family: sans-serif;
+            }
             .tidc-card { box-shadow: 0 4px 14px rgba(0,0,0,0.2); }
+            @media print {
+              body { background: #fff; padding: 0; }
+              .tidc-card-outer { page-break-inside: avoid; }
+            }
           </style>
         </head>
         <body>
@@ -679,10 +700,33 @@ export default function TeacherIdCard({ teacher, teacherUsername }) {
       </html>
     `);
     printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 400);
+
+    // Wait for every image (teacher photo + both QR codes) to finish
+    // loading before triggering print — otherwise the browser can print
+    // a blank box where the QR or photo should be.
+    const waitForImages = () => {
+      const imgs = Array.from(printWindow.document.images);
+      const pending = imgs.filter((img) => !img.complete);
+      if (pending.length === 0) {
+        printWindow.focus();
+        printWindow.print();
+        return;
+      }
+      let remaining = pending.length;
+      pending.forEach((img) => {
+        const done = () => {
+          remaining -= 1;
+          if (remaining === 0) {
+            printWindow.focus();
+            printWindow.print();
+          }
+        };
+        img.addEventListener("load", done, { once: true });
+        img.addEventListener("error", done, { once: true });
+      });
+    };
+
+    setTimeout(waitForImages, 50);
   };
 
   return (

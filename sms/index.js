@@ -23,7 +23,7 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
-
+const axios = require("axios");
 if (getApps().length === 0) {
   initializeApp();
 }

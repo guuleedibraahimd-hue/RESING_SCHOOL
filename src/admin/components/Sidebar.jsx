@@ -15,6 +15,7 @@ import {
   FileEdit,
   HelpCircle,
   Settings,
+  Clock,
 } from "lucide-react";
 
 import logo from "../assets/logo.png";
@@ -25,6 +26,7 @@ const menus = [
   { name: "Teachers", icon: Users, path: "/admin/teachers" },
   { name: "Parents", icon: Users, path: "/admin/parents" },
   { name: "Classes", icon: School, path: "/admin/classes" },
+  { name: "Shifts", icon: Clock, path: "/admin/shifts" },
   { name: "Attendance", icon: CalendarCheck, path: "/admin/attendance" },
   { name: "Exams", icon: ClipboardList, path: "/admin/exams" },
   { name: "Timetable", icon: CalendarDays, path: "/admin/timetable" },

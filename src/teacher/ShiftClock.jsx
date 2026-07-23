@@ -2,6 +2,12 @@
 // Lets a teacher clock a shift in/out for the day and keeps a full
 // history of every shift ever worked, saved to Firestore under
 // "shifts" (one document per shift, so nothing is ever overwritten).
+//
+// NOTE: Live-ticking timer-ka (second-by-second) waa la saaray.
+// Marka shiftka furan yahay, waxaa kaliya la tusayaa in uu furan yahay
+// iyo waqtiga uu ka bilaabmay — muddada (duration) lama xisaabiyo
+// ilaa uu shiftka xirmo. Marka la xiro, muddadii saxda ah ayaa la
+// keydiyaa oo lagu tusaa History-ga.
 import { useEffect, useState } from "react";
 import { db } from "../firebase/firebase";
 import {
@@ -14,7 +20,6 @@ import {
   where,
   orderBy,
   serverTimestamp,
-  Timestamp,
 } from "firebase/firestore";
 import { Clock, LogIn, LogOut, History, X } from "lucide-react";
 
@@ -42,12 +47,6 @@ function ShiftClockStyles() {
         gap: 14px;
         flex-wrap: wrap;
       }
-      .sc-timer {
-        font-size: 30px;
-        font-weight: 800;
-        color: #fff;
-        font-variant-numeric: tabular-nums;
-      }
       .sc-btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
 
       .sc-modal-overlay {
@@ -70,7 +69,6 @@ function ShiftClockStyles() {
       @media (max-width: 900px) {
         .sc-card { padding: 16px !important; border-radius: 16px !important; }
         .sc-btn-row button { flex: 1 1 45%; justify-content: center; }
-        .sc-timer { font-size: 24px; }
         .sc-modal { padding: 18px; width: 100%; }
       }
 
@@ -81,13 +79,14 @@ function ShiftClockStyles() {
   );
 }
 
+// Muddada waxaa loo qaabeeyaa "Xh Xd" (saacado iyo daqiiqado) —
+// kaliya waqtiga la xiray ayaa loo isticmaalaa, ma aha mid live-ah.
 function formatDuration(ms) {
-  if (ms < 0) ms = 0;
-  const totalSeconds = Math.floor(ms / 1000);
-  const h = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
-  const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
-  const s = String(totalSeconds % 60).padStart(2, "0");
-  return `${h}:${m}:${s}`;
+  if (!ms || ms < 0) ms = 0;
+  const totalMinutes = Math.floor(ms / 60000);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h}s ${m}d`;
 }
 
 function toDateSafe(v) {
@@ -100,12 +99,20 @@ function formatDateTime(v) {
   return d ? d.toLocaleString() : "—";
 }
 
+// Waqtiga oo kaliya (saacad:daqiiqad) — waxaa loo isticmaalaa
+// bogga History si loo tuso goorma shiftka la xiray.
+function formatTimeOnly(v) {
+  const d = toDateSafe(v);
+  return d
+    ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "—";
+}
+
 export default function ShiftClock() {
   const teacherId = localStorage.getItem("teacherId") || "";
   const teacherName = localStorage.getItem("teacherName") || "Teacher";
 
   const [activeShift, setActiveShift] = useState(null); // { id, clockInAt }
-  const [now, setNow] = useState(Date.now());
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -117,13 +124,6 @@ export default function ShiftClock() {
     loadActiveShift();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Live-ticking timer while a shift is open
-  useEffect(() => {
-    if (!activeShift) return;
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, [activeShift]);
 
   // Look in Firestore (not local state) for any shift this teacher has
   // clocked in but not yet clocked out. This is what makes the open
@@ -253,8 +253,6 @@ export default function ShiftClock() {
     }
   };
 
-  const elapsedMs = activeShift ? now - activeShift.clockInAt.getTime() : 0;
-
   return (
     <div className="sc-card">
       <ShiftClockStyles />
@@ -304,10 +302,6 @@ export default function ShiftClock() {
             <span style={{ color: "#94A3B8", fontSize: 13 }}>
               La bilaabay: {formatDateTime(activeShift.clockInAt)}
             </span>
-          </div>
-
-          <div className="sc-timer" style={{ marginTop: 14 }}>
-            {formatDuration(elapsedMs)}
           </div>
 
           <div className="sc-btn-row">
@@ -379,19 +373,22 @@ export default function ShiftClock() {
             ) : (
               history.map((s) => {
                 const isOpen = s.status === "open";
-                const dur = isOpen
-                  ? now - (toDateSafe(s.clockInAt)?.getTime() || now)
-                  : s.durationMs || 0;
+                // Muddada shiftyada xiran waxaa laga soo qaatay
+                // durationMs-ka la keydiyay markii la xiray — kani waa
+                // qiimaha ugu saxsan, mana isbedelo mar dambe.
+                const dur = isOpen ? null : s.durationMs || 0;
                 return (
                   <div key={s.id} className="sc-history-row">
                     <div style={{ minWidth: 0 }}>
                       <div style={{ color: "#fff", fontWeight: 600, fontSize: 14 }}>
                         {formatDateTime(s.clockInAt)}
                         {" → "}
-                        {isOpen ? "Weli furan" : formatDateTime(s.clockOutAt)}
+                        {isOpen ? "Weli furan" : formatTimeOnly(s.clockOutAt)}
                       </div>
                       <div style={{ color: "#94A3B8", fontSize: 12.5, marginTop: 2 }}>
-                        Muddo: {formatDuration(dur)}
+                        {isOpen
+                          ? "Wali lama xirin"
+                          : `Muddo: ${formatDuration(dur)}`}
                       </div>
                     </div>
                     <span

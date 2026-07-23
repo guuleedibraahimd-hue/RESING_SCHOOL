@@ -1,7 +1,7 @@
 // src/admin/pages/Dashboard.jsx
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Send } from "lucide-react";
+import { Send, Clock } from "lucide-react";
 import { db } from "../../firebase/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import Sidebar from "../components/Sidebar";
@@ -45,6 +45,24 @@ function computeMonthGrowth(docsList) {
     return thisMonthCount > 0 ? 100 : 0;
   }
   return Math.round(((thisMonthCount - lastMonthCount) / lastMonthCount) * 100);
+}
+
+// Formats a Firestore Timestamp / Date / date-like value into just the
+// time portion (e.g. "08:32 AM"), for showing on the shift tracker card.
+function formatTimeOnly(v) {
+  if (!v) return "—";
+  const d = v.toDate ? v.toDate() : new Date(v);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatShiftDuration(ms) {
+  if (!ms || ms <= 0) return "—";
+  const totalMinutes = Math.round(ms / 60000);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h === 0) return `${m}m`;
+  return `${h}h ${m}m`;
 }
 
 const cardStyle = {
@@ -126,6 +144,7 @@ export default function Dashboard() {
   const [attendanceStats, setAttendanceStats] = useState({ present: 0, absent: 0, late: 0, total: 0 });
   const [upcomingExams, setUpcomingExams] = useState([]);
   const [notices, setNotices] = useState([]);
+  const [todaysShifts, setTodaysShifts] = useState([]);
   const [growth, setGrowth] = useState({
     students: null,
     teachers: null,
@@ -155,6 +174,13 @@ export default function Dashboard() {
       const teachersSnap = await getDocs(collection(db, "teachers"));
       const teachersList = teachersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setTeachersCount(teachersList.length);
+
+      // Build a teacherId -> name/photo lookup, reused below for the shift
+      // tracker card so it can show who's clocked in without extra reads.
+      const teachersById = {};
+      teachersList.forEach((t) => {
+        teachersById[t.id] = t;
+      });
 
       const cashierSnap = await getDocs(collection(db, "cashier"));
       // Only count cashier docs whose ID is a real username-style string,
@@ -303,6 +329,32 @@ export default function Dashboard() {
         .filter((m) => m.scope === "broadcast" || m.audienceGroup === "broadcast");
       messagesList.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setNotices(messagesList.slice(0, 4));
+
+      // Teacher Shifts — every shift doc whose clockInAt falls on today's
+      // calendar date, newest first, enriched with the teacher's name/photo
+      // (falling back to whatever the shift doc itself stored).
+      const shiftsSnap = await getDocs(collection(db, "shifts"));
+      const shiftsList = shiftsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const todaysShiftsList = shiftsList
+        .filter((s) => {
+          const d = s.clockInAt?.toDate ? s.clockInAt.toDate() : new Date(s.clockInAt);
+          if (isNaN(d.getTime())) return false;
+          return d.toISOString().slice(0, 10) === todayStr;
+        })
+        .map((s) => {
+          const teacher = teachersById[s.teacherId];
+          return {
+            ...s,
+            resolvedName: teacher?.fullName || s.teacherName || "Macalin aan la aqoon",
+            resolvedPhoto: teacher?.photoUrl || teacher?.teacherPhoto || "",
+          };
+        })
+        .sort((a, b) => {
+          const at = a.clockInAt?.seconds || 0;
+          const bt = b.clockInAt?.seconds || 0;
+          return bt - at;
+        });
+      setTodaysShifts(todaysShiftsList);
     } catch (error) {
       console.error("Khalad ayaa dhacay markii xogta Dashboard laga soo qaadanayay:", error);
     } finally {
@@ -348,6 +400,8 @@ export default function Dashboard() {
 
   const feePercent =
     feeStats.total > 0 ? Math.round((feeStats.collected / feeStats.total) * 100) : 0;
+
+  const activeShiftsCount = todaysShifts.filter((s) => s.status === "open").length;
 
   return (
     <div
@@ -820,15 +874,143 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Students by Class + Banner */}
+          {/* Teacher Shifts (today) + Students by Class */}
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
               gap: 20,
+              marginBottom: 24,
             }}
             className="dash-row"
           >
+            {/* Teacher Shifts — today's clock-in/clock-out activity,
+                pulled live from the "shifts" collection */}
+            <div style={cardStyle}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 14,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      background: "rgba(139,92,246,0.12)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Clock size={17} color="#8B5CF6" />
+                  </div>
+                  <h3 style={{ margin: 0, fontSize: 15, color: "#111827", fontWeight: 700 }}>
+                    Teacher Shifts (Today)
+                  </h3>
+                </div>
+                <span
+                  style={{ fontSize: 12, color: "#16a34a", fontWeight: 600, cursor: "pointer", flexShrink: 0 }}
+                  onClick={() => navigate("/admin/shifts")}
+                >
+                  View All
+                </span>
+              </div>
+
+              {!loading && activeShiftsCount > 0 && (
+                <div
+                  style={{
+                    display: "inline-block",
+                    background: "rgba(34,197,94,0.12)",
+                    color: "#16a34a",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: "4px 12px",
+                    borderRadius: 20,
+                    marginBottom: 12,
+                  }}
+                >
+                  ● {activeShiftsCount} macalin oo hadda shift furan
+                </div>
+              )}
+
+              {todaysShifts.length === 0 && !loading && (
+                <p style={{ fontSize: 13, color: "#9CA3AF" }}>
+                  Maanta wali cid shift furan ama xiray lama helin.
+                </p>
+              )}
+
+              {todaysShifts.slice(0, 5).map((s) => {
+                const isOpen = s.status === "open";
+                return (
+                  <div
+                    key={s.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      marginBottom: 12,
+                    }}
+                  >
+                    {s.resolvedPhoto ? (
+                      <img
+                        src={s.resolvedPhoto}
+                        alt=""
+                        style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          background: "#E6F5EC",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          fontSize: 12.5,
+                          fontWeight: 800,
+                          color: "#16a34a",
+                        }}
+                      >
+                        {(s.resolvedName || "?").charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>
+                        {s.resolvedName}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: "#9CA3AF" }}>
+                        {formatTimeOnly(s.clockInAt)}
+                        {" → "}
+                        {isOpen ? "Weli furan" : formatTimeOnly(s.clockOutAt)}
+                        {!isOpen && s.durationMs ? ` · ${formatShiftDuration(s.durationMs)}` : ""}
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        background: isOpen ? "rgba(34,197,94,0.15)" : "rgba(109,93,240,0.15)",
+                        color: isOpen ? "#22C55E" : "#8B5CF6",
+                        padding: "3px 10px",
+                        borderRadius: 20,
+                        fontWeight: 700,
+                        fontSize: 11,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {isOpen ? "Furan" : "Xiran"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
             {/* Students by Class */}
             <div
               style={{
@@ -913,30 +1095,31 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+          </div>
 
-            {/* Banner */}
-            <div
-              style={{
-                background: "linear-gradient(160deg,#16a34a,#15803d)",
-                borderRadius: 18,
-                padding: "26px 24px",
-                color: "#fff",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                minWidth: 0,
-              }}
-            >
-              <div>
-                <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800 }}>
-                  Let's make this year amazing! 🚀
-                </h3>
-                <p style={{ margin: 0, fontSize: 13.5, opacity: 0.9, lineHeight: 1.5 }}>
-                  Stay organized and keep your school running smoothly.
-                </p>
-              </div>
-              <div style={{ fontSize: 48, textAlign: "center", marginTop: 20 }}>🏫</div>
+          {/* Banner */}
+          <div
+            style={{
+              background: "linear-gradient(160deg,#16a34a,#15803d)",
+              borderRadius: 18,
+              padding: "26px 24px",
+              color: "#fff",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              minWidth: 0,
+              marginBottom: 20,
+            }}
+          >
+            <div>
+              <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800 }}>
+                Let's make this year amazing! 🚀
+              </h3>
+              <p style={{ margin: 0, fontSize: 13.5, opacity: 0.9, lineHeight: 1.5 }}>
+                Stay organized and keep your school running smoothly.
+              </p>
             </div>
+            <div style={{ fontSize: 48, textAlign: "center", marginTop: 20 }}>🏫</div>
           </div>
 
           {/* Teachers list */}
