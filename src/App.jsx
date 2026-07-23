@@ -47,6 +47,7 @@ import CashierPayments from "./cashier/Payments";
 import CashierReports from "./cashier/Reports";
 import CashierProfile from "./cashier/Profile";
 import ReceiptModal from "./cashier/ReceiptModal";
+import ExamCards from "./admin/pages/ExamCards";
 
 function App() {
   return (
@@ -61,6 +62,7 @@ function App() {
         <Route path="/parent-login" element={<Login role="Parent" />} />
         <Route path="/cashier-login" element={<Login role="Cashier" />} />
         <Route path="/cashier/receipts" element={<CashierReports />} />
+        <Route path="/admin/exam-cards" element={<ExamCards />} />
 
         <Route path="/student/dashboard" element={<StudentDashboard />} />
         <Route path="/parent/dashboard" element={<ParentDashboard />} />

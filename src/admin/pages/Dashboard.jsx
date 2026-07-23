@@ -1,7 +1,7 @@
 // src/admin/pages/Dashboard.jsx
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Send, Clock } from "lucide-react";
+import { Send, Clock, IdCard } from "lucide-react";
 import { db } from "../../firebase/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import Sidebar from "../components/Sidebar";
@@ -477,6 +477,26 @@ export default function Dashboard() {
               >
                 Send SMS
                 <Send size={15} />
+              </button>
+
+              <button
+                onClick={() => navigate("/admin/exam-cards")}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "12px 22px",
+                  borderRadius: 14,
+                  border: "1.5px solid rgba(255,255,255,0.5)",
+                  background: "rgba(255,255,255,0.12)",
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: 13.5,
+                  cursor: "pointer",
+                }}
+              >
+                Exam Cards
+                <IdCard size={15} />
               </button>
             </div>
           </div>
