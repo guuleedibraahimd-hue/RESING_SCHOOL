@@ -9,6 +9,7 @@ import {
 
 import { db } from "../firebase/firebase";
 import { theme } from "./theme.js";
+import ReceiptModal from "./ReceiptModal.jsx";
 
 const SCHOOL_NAME = "Rising School"; // beddel magaca dugsigaaga haddii loo baahdo
 
@@ -28,6 +29,7 @@ export default function Payments() {
   const [amounts, setAmounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
+  const [receiptPayment, setReceiptPayment] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -116,7 +118,7 @@ export default function Payments() {
     try {
       setSavingId(student.id);
 
-      await setDoc(doc(db, "payments", paymentDocId), {
+      const paymentRecord = {
         studentId: student.studentId,
         studentName: student.fullName,
         className: student.className || "",
@@ -130,7 +132,9 @@ export default function Payments() {
         studentPhone: student.studentPhone || "",
         parentPhone: student.parentPhone || "",
         createdAt: serverTimestamp(),
-      });
+      };
+
+      await setDoc(doc(db, "payments", paymentDocId), paymentRecord);
 
       setPayments({
         ...payments,
@@ -148,6 +152,14 @@ export default function Payments() {
       setAmounts({
         ...amounts,
         [student.id]: "",
+      });
+
+      // U dir rasiidka automatic — waxaa loo isticmaalayaa taariikhda
+      // dhabta ah ee hadda (serverTimestamp weli lama soo celin), si
+      // rasiidku u tuso wakhtiga saxda ah ee lacagta la bixiyay.
+      setReceiptPayment({
+        ...paymentRecord,
+        createdAt: { seconds: Math.floor(Date.now() / 1000) },
       });
     } catch (err) {
       console.log(err);
@@ -371,6 +383,13 @@ export default function Payments() {
           </table>
         )}
       </div>
+
+      {receiptPayment && (
+        <ReceiptModal
+          payment={receiptPayment}
+          onClose={() => setReceiptPayment(null)}
+        />
+      )}
     </div>
   );
 }
