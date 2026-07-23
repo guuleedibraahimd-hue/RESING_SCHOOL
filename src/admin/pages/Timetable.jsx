@@ -50,14 +50,25 @@ function emptySession() {
   };
 }
 
-// ---- Kala saar xiisadaha marka la eego wakhtiga bilowga, oo ku dar
-// sessionNumber (Xiisad #1, #2, ...) si midka kore uu had iyo jeer
-// noqdo Xiisadda 1aad ---- 
+// ---- Ku dar sessionNumber (Xiisad #1, #2, ...) iyadoo la raacayo
+// taxanaha (order) ay ku yaalliin sessions-ka gudaha array-ga — LAMA
+// kala sortayo wakhtiga bilowga, si xiisadda cusub aysan meel kale
+// ugu boodin marka la kudarayo ama wakhtiga laga beddelo. Xiisadda
+// ugu dambeysa ee la darto had iyo jeer waxay ku sii jirtaa hoosta
+// liiska ilaa macalinku gacanta ku bedbeddelo taxanaha. ----
 function withSessionNumbers(sessions) {
-  const sorted = [...sessions].sort((a, b) =>
+  return sessions.map((s, i) => ({ ...s, sessionNumber: i + 1 }));
+}
+
+// ---- Kala soocidda wakhtiga — waxaa loo isticmaalaa KALIYA meelaha
+// wax lagu soo bandhigayo (read-only summary), sida jadwalka
+// toddobaadka ee WeekSummary, halkaas ku habboon in xiisadaha lagu
+// soo bandhigo si kala horreysay (wakhtiga bilowga). Editor-ka
+// gudaha (draftSessions) marnaba lama isticmaalo. ----
+function sortedBySessionTime(sessions) {
+  return [...sessions].sort((a, b) =>
     (a.startTime || "").localeCompare(b.startTime || "")
   );
-  return sorted.map((s, i) => ({ ...s, sessionNumber: i + 1 }));
 }
 
 function ResponsiveStyles() {
@@ -305,6 +316,9 @@ export default function Timetable() {
 
   // Whenever the selected class or active day changes, load the draft
   // sessions for that class/day from the loaded timetable docs.
+  // NOTE: we keep whatever order is already saved in Firestore (which
+  // itself preserves insertion order) instead of re-sorting by time,
+  // so rows never jump around when this effect re-runs.
   useEffect(() => {
     if (!selectedClass) return;
     const key = `${selectedClass}__${activeDay}`;
@@ -326,13 +340,17 @@ export default function Timetable() {
     setDraftSessions((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
-      // Xiisad #1, #2 ... dib u tir marka wakhtiga la badalo
-      return field === "startTime" ? withSessionNumbers(next) : next;
+      // Kaliya dib u tir sessionNumber-yada (taxanaha isku mid ah wuu sii ahaanayaa) —
+      // marnaba lama kala sortayo wakhtiga, si rowga aanu meel kale ugu booddin.
+      return withSessionNumbers(next);
     });
     setDirty(true);
   }
 
   function addSession() {
+    // Ku dar xiisadda cusub hoosta liiska si joogto ah (append), mana
+    // sortayo array-ga — sidaa darteed xiisadda cusub had iyo jeer
+    // waxay ku sii jirtaa hoosta ilaa loo bedbeddelo gacanta.
     setDraftSessions((prev) => withSessionNumbers([...prev, emptySession()]));
     setDirty(true);
   }
@@ -353,20 +371,22 @@ export default function Timetable() {
       );
       if (studentsSnap.empty) return;
 
-      // Isku dar jadwalka toddobaadka oo dhan ee fasalkan (5-ta maalmood)
+      // Isku dar jadwalka toddobaadka oo dhan ee fasalkan (5-ta maalmood).
+      // Halkan waxaa lagu soo bandhigayaa xiisadaha si kala horreysay
+      // (wakhtiga bilowga) sababtoo ah tani waa view/summary oo kaliya —
+      // kuma saameeyo sida xiisadaha loogu darayo editor-ka.
       const weekSchedule = DAYS.map((d) => {
         const key = `${className}__${d.key}`;
-        const sessions = (updatedTimetableDocs[key]?.sessions || [])
-          .slice()
-          .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""))
-          .map((s) => ({
+        const sessions = sortedBySessionTime(updatedTimetableDocs[key]?.sessions || []).map(
+          (s) => ({
             sessionNumber: s.sessionNumber,
             startTime: s.startTime,
             endTime: s.endTime,
             teacherId: s.teacherId,
             teacherName: teachers[s.teacherId]?.fullName || s.teacherId,
             subject: s.subject || "",
-          }));
+          })
+        );
         return { day: d.key, dayLabel: d.label, sessions };
       });
 
@@ -389,6 +409,8 @@ export default function Timetable() {
     const key = `${selectedClass}__${activeDay}`;
 
     // Skip rows with no teacher selected to avoid saving blank sessions.
+    // Order is preserved as-is (no time-based sorting) so the saved
+    // sessions array keeps matching what the teacher sees in the editor.
     const cleanSessions = withSessionNumbers(
       draftSessions.filter((s) => s.teacherId && s.teacherId.trim() !== "")
     );
@@ -816,7 +838,9 @@ export default function Timetable() {
                         zIndex: draftSessions.length - index,
                       }}
                     >
-                      {/* Xiisad #N - midka kore had iyo jeer waa #1 */}
+                      {/* Xiisad #N - taxanaha waa mid joogto ah, ma ahan mid ku
+                          xiran wakhtiga bilowga, sidaas darteed rowga hoosta
+                          ah wuu sii ahaanayaa #N ilaa la bedbeddelo gacanta */}
                       <div
                         style={{
                           display: "flex",
@@ -915,7 +939,10 @@ export default function Timetable() {
 function WeekSummary({ selectedClass, timetableDocs, teachers }) {
   const rows = DAYS.map((d) => {
     const key = `${selectedClass}__${d.key}`;
-    const sessions = withSessionNumbers(timetableDocs[key]?.sessions || []);
+    // Summary view sorts by time for readability — this doesn't touch the editor state.
+    const sessions = sortedBySessionTime(
+      withSessionNumbers(timetableDocs[key]?.sessions || [])
+    );
     return { day: d, sessions };
   });
 
