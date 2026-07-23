@@ -754,20 +754,6 @@ export default function StudentIdCard({ student, studentId }) {
         <CardBack forwardRef={backRef} />
       </div>
 
-      <div className="idc-print-hide idc-actions">
-        <button className="idc-btn idc-btn-print" onClick={handlePrint}>
-          🖨️ Print ID card
-        </button>
-        <button className="idc-btn idc-btn-download" onClick={handleDownload} disabled={busy}>
-          {busy ? "Preparing…" : "⬇️ Download ID card"}
-        </button>
-      </div>
-
-      {error && (
-        <div style={{ textAlign: "center", fontSize: 12, color: "#c0392b", marginTop: 8 }}>
-          {error}
-        </div>
-      )}
     </div>
   );
 }
