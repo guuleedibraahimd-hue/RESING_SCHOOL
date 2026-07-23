@@ -33,11 +33,11 @@ function classRank(className) {
 }
 
 const DAYS = [
-  { key: "Monday", label: "Saturday" },
-  { key: "Tuesday", label: "Sunday" },
-  { key: "Wednesday", label: "Monday" },
-  { key: "Thursday", label: "Tuesday" },
-  { key: "Friday", label: "Wednesday" },
+  { key: "Saturday", label: "Saturday" },
+  { key: "Sunday", label: "Sunday" },
+  { key: "Monday", label: "Monday" },
+  { key: "Tuesday", label: "Tuesday" },
+  { key: "Wednesday", label: "Wednesday" },
 ];
 
 function emptySession() {
