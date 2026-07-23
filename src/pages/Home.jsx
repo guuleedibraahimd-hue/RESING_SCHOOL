@@ -1,6 +1,7 @@
 // src/pages/Home.jsx
 import "../styles/home.css";
 import logo from "../assets/logo.png";
+import heroPhoto from "../admin/assets/hero-students.jpg";
 import { Link } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 
@@ -39,18 +40,129 @@ const ROLES = [
   },
 ];
 
-const FEATURES = [
-  { emoji: "🛡️", title: "Secure & Safe", desc: "Your data is protected with top security" },
-  { emoji: "📈", title: "Real-time Reports", desc: "Get instant insights and analytics" },
-  { emoji: "🔔", title: "Smart Notifications", desc: "Stay updated with real-time alerts" },
-  { emoji: "☁️", title: "Cloud Based", desc: "Access anytime, anywhere from any device" },
-  { emoji: "📱", title: "Mobile Friendly", desc: "Fully responsive on all devices" },
-  { emoji: "🎧", title: "24/7 Support", desc: "We're here to help you anytime" },
+const STATS = [
+  { key: "students", icon: "👥", value: "320", label: "Students", color: "green" },
+  { key: "teachers", icon: "👤", value: "25", label: "Teachers", color: "orange" },
+  { key: "classes", icon: "📘", value: "18", label: "Classes", color: "blue" },
+  { key: "attendance", icon: "✅", value: "96%", label: "Attendance", color: "green" },
+];
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 
 // Admin contact info — waxaa loo isticmaalaa "Need Help?" menu-ga
 const SUPPORT_WHATSAPP = "252617390261"; // international format, no + or leading 0
 const SUPPORT_EMAIL = "risingstar0261@gmail.com";
+
+function buildCalendarGrid(year, month) {
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  const cells = [];
+  for (let i = firstDay - 1; i >= 0; i--) {
+    cells.push({ day: daysInPrevMonth - i, muted: true });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ day: d, muted: false });
+  }
+  while (cells.length % 7 !== 0) {
+    cells.push({ day: cells.length - (firstDay + daysInMonth) + 1, muted: true });
+  }
+  return cells;
+}
+
+function MiniCalendar() {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+  const cells = buildCalendarGrid(viewYear, viewMonth);
+  const isCurrentMonth =
+    viewYear === today.getFullYear() && viewMonth === today.getMonth();
+
+  const goPrev = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear((y) => y - 1);
+    } else {
+      setViewMonth((m) => m - 1);
+    }
+  };
+
+  const goNext = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear((y) => y + 1);
+    } else {
+      setViewMonth((m) => m + 1);
+    }
+  };
+
+  const goToday = () => {
+    setViewYear(today.getFullYear());
+    setViewMonth(today.getMonth());
+  };
+
+  return (
+    <div className="calendar-card">
+      <h3 className="calendar-title">Calendar</h3>
+
+      <div className="calendar-nav">
+        <button
+          type="button"
+          className="calendar-arrow"
+          aria-label="Previous month"
+          onClick={goPrev}
+        >
+          ‹
+        </button>
+        <span className="calendar-month-label">
+          {MONTH_NAMES[viewMonth]} {viewYear}
+        </span>
+        <button
+          type="button"
+          className="calendar-arrow"
+          aria-label="Next month"
+          onClick={goNext}
+        >
+          ›
+        </button>
+        <button type="button" className="calendar-today-btn" onClick={goToday}>
+          Today
+        </button>
+      </div>
+
+      <div className="calendar-weekdays">
+        {WEEKDAYS.map((w) => (
+          <span key={w}>{w}</span>
+        ))}
+      </div>
+
+      <div className="calendar-grid">
+        {cells.map((cell, i) => {
+          const isToday =
+            isCurrentMonth && !cell.muted && cell.day === today.getDate();
+          return (
+            <span
+              key={i}
+              className={
+                "calendar-cell" +
+                (cell.muted ? " muted" : "") +
+                (isToday ? " today" : "")
+              }
+            >
+              {cell.day}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -77,8 +189,8 @@ export default function Home() {
         <div className="brand">
           <img src={logo} className="brand-logo" alt="Rising School logo" />
           <div className="brand-text">
-            <span className="brand-name">RISING SCHOOL</span>
-            <span className="brand-tagline">School Management  System</span>
+            <span className="brand-name">RISING STAR PRIMARY &amp; SECONDARY SCHOOL</span>
+            <span className="brand-tagline">School Management System</span>
           </div>
         </div>
 
@@ -128,57 +240,57 @@ export default function Home() {
               </div>
             )}
           </div>
+
+          <Link to="/profile" className="header-avatar" aria-label="Profile">
+            <img src={heroPhoto} alt="" />
+          </Link>
         </div>
       </header>
 
       <section className="hero">
         <div className="hero-copy">
           <p className="hero-eyebrow">Welcome to</p>
-          <h1 className="hero-title">RISING STAR PRIMARY & SECONDARY SCHOOL</h1>
-          <h2 className="hero-subtitle">School Management  System</h2>
+          <h1 className="hero-title">
+            RISING STAR
+            <br />
+            PRIMARY &amp;
+            <br />
+            SECONDARY SCHOOL
+          </h1>
+          <h2 className="hero-subtitle">School Management System</h2>
           <div className="hero-rule" />
           <p className="hero-lede">
-            Education is life it self.
-            <br />
-          
+            A complete solution to manage students, teachers, classes,
+            examinations, and more.
           </p>
+          <Link to="/get-started" className="hero-cta">
+            <span className="hero-cta-icon">▦</span>
+            Get Started
+          </Link>
         </div>
 
-        <div className="hero-art" aria-hidden="true">
-          <svg viewBox="0 0 520 420" className="school-illustration">
-            <circle cx="330" cy="130" r="150" className="art-ring" />
-            <g className="art-leaves">
-              <path d="M60 90 Q80 70 100 90 Q80 110 60 90 Z" />
-              <path d="M40 130 Q58 116 76 130 Q58 144 40 130 Z" />
-            </g>
-
-            <rect x="120" y="150" width="320" height="230" rx="6" className="art-building" />
-            <rect x="150" y="90" width="80" height="60" className="art-tower" />
-            <polygon points="150,90 190,60 230,90" className="art-roof" />
-            <circle cx="190" cy="115" r="14" className="art-clock" />
-            <line x1="190" y1="115" x2="190" y2="106" className="art-clock-hand" />
-            <line x1="190" y1="115" x2="197" y2="118" className="art-clock-hand" />
-
-            {Array.from({ length: 4 }).map((_, row) =>
-              Array.from({ length: 6 }).map((_, col) => (
-                <rect
-                  key={`${row}-${col}`}
-                  x={140 + col * 48}
-                  y={185 + row * 42}
-                  width="26"
-                  height="26"
-                  rx="2"
-                  className="art-window"
-                />
-              ))
-            )}
-
-            <rect x="235" y="320" width="50" height="60" rx="3" className="art-door" />
-            <circle cx="272" cy="352" r="2.5" className="art-door-knob" />
-
-            <ellipse cx="280" cy="382" rx="220" ry="14" className="art-ground" />
-          </svg>
+        <div className="hero-art">
+          <img src={heroPhoto} alt="Rising Star School students" className="hero-photo" />
         </div>
+
+        <div className="hero-side">
+          <MiniCalendar />
+        </div>
+      </section>
+
+      <section className="stats-grid">
+        {STATS.map((s) => (
+          <div className={`stat-card stat-${s.color}`} key={s.key}>
+            <span className="stat-icon">{s.icon}</span>
+            <div className="stat-body">
+              <span className="stat-value">{s.value}</span>
+              <span className="stat-label">{s.label}</span>
+            </div>
+            <svg className="stat-sparkline" viewBox="0 0 100 30" preserveAspectRatio="none">
+              <polyline points="0,22 15,18 30,24 45,12 60,16 75,6 100,4" />
+            </svg>
+          </div>
+        ))}
       </section>
 
       <section className="roles-grid">
@@ -196,18 +308,13 @@ export default function Home() {
         ))}
       </section>
 
-      <section className="features-strip">
-        {FEATURES.map((f) => (
-          <div className="feature" key={f.title}>
-            <span className="feature-icon">{f.emoji}</span>
-            <h4 className="feature-title">{f.title}</h4>
-            <p className="feature-desc">{f.desc}</p>
-          </div>
-        ))}
-      </section>
-
       <footer className="home-footer">
-        © {new Date().getFullYear()} Rising School. All rights reserved.
+        <span>© {new Date().getFullYear()} Rising Star School. All rights reserved.</span>
+        <span className="footer-links">
+          <a href="/privacy">Privacy Policy</a>
+          <span className="footer-divider">|</span>
+          <a href="/terms">Terms of Service</a>
+        </span>
       </footer>
     </div>
   );

@@ -73,8 +73,17 @@ export default function Dashboard() {
       monthPayments.filter((p) => p.status === "Paid").map((p) => p.studentId)
     );
 
-    const studentsPaid = paidStudentIds.size;
-    const studentsRemaining = Math.max(students.length - studentsPaid, 0);
+    // Free students are excluded from paid/remaining counts entirely —
+    // they never owe a fee, so they shouldn't inflate "remaining".
+    const payableStudents = students.filter((s) => s.feeType !== "Free");
+
+    const studentsPaid = payableStudents.filter((s) =>
+      paidStudentIds.has(s.studentId)
+    ).length;
+    const studentsRemaining = Math.max(
+      payableStudents.length - studentsPaid,
+      0
+    );
 
     return {
       todaysCollection,

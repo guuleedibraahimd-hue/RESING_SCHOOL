@@ -86,6 +86,8 @@ export default function Payments() {
     );
   });
 
+  const isFreeStudent = (student) => student.feeType === "Free";
+
   const isPaidThisMonth = (studentId) => {
     const record = payments[studentId];
     if (!record) return false;
@@ -93,6 +95,8 @@ export default function Payments() {
   };
 
   const savePayment = async (student) => {
+    if (isFreeStudent(student)) return;
+
     const entered = Number(amounts[student.id] || 0);
 
     if (entered <= 0) {
@@ -169,7 +173,11 @@ export default function Payments() {
           </div>
           <div style={styles.statPill}>
             <span style={styles.statNum}>
-              {students.filter((s) => isPaidThisMonth(s.studentId)).length}
+              {
+                students.filter(
+                  (s) => !isFreeStudent(s) && isPaidThisMonth(s.studentId)
+                ).length
+              }
             </span>
             <span style={styles.statLabel}>Paid this month</span>
           </div>
@@ -223,7 +231,8 @@ export default function Payments() {
 
             <tbody>
               {filtered.map((student, i) => {
-                const paidThisMonth = isPaidThisMonth(student.studentId);
+                const free = isFreeStudent(student);
+                const paidThisMonth = !free && isPaidThisMonth(student.studentId);
                 const record = payments[student.studentId];
 
                 const entered = Number(amounts[student.id] || 0);
@@ -234,7 +243,9 @@ export default function Payments() {
                   ? record.remaining
                   : Math.max(fee - entered, 0);
 
-                const status = paidThisMonth
+                const status = free
+                  ? "Free"
+                  : paidThisMonth
                   ? "Paid"
                   : entered > 0
                   ? entered >= fee
@@ -261,41 +272,53 @@ export default function Payments() {
                     <td style={styles.td}>{student.className || "—"}</td>
                     <td style={styles.td}>{student.studentPhone || "—"}</td>
                     <td style={styles.td}>{student.parentPhone || "—"}</td>
-                    <td style={{ ...styles.td, ...styles.money }}>${fee}</td>
                     <td style={{ ...styles.td, ...styles.money }}>
-                      ${displayPaid}
+                      {free ? "—" : `$${fee}`}
                     </td>
                     <td style={{ ...styles.td, ...styles.money }}>
-                      ${displayRemaining}
+                      {free ? "—" : `$${displayPaid}`}
+                    </td>
+                    <td style={{ ...styles.td, ...styles.money }}>
+                      {free ? "—" : `$${displayRemaining}`}
                     </td>
                     <td style={styles.td}>
-                      <input
-                        type="number"
-                        disabled={paidThisMonth}
-                        value={amounts[student.id] || ""}
-                        onChange={(e) =>
-                          setAmounts({
-                            ...amounts,
-                            [student.id]: e.target.value,
-                          })
-                        }
-                        style={{
-                          ...styles.amountInput,
-                          background: paidThisMonth
-                            ? "#F0F3F2"
-                            : theme.colors.card,
-                          color: theme.colors.ink,
-                        }}
-                      />
+                      {free ? (
+                        <span style={{ color: theme.colors.inkMuted, fontSize: 12.5 }}>
+                          —
+                        </span>
+                      ) : (
+                        <input
+                          type="number"
+                          disabled={paidThisMonth}
+                          value={amounts[student.id] || ""}
+                          onChange={(e) =>
+                            setAmounts({
+                              ...amounts,
+                              [student.id]: e.target.value,
+                            })
+                          }
+                          style={{
+                            ...styles.amountInput,
+                            background: paidThisMonth
+                              ? "#F0F3F2"
+                              : theme.colors.card,
+                            color: theme.colors.ink,
+                          }}
+                        />
+                      )}
                     </td>
                     <td style={styles.td}>
                       <span
                         style={{
                           ...styles.badge,
-                          color: isPaidStatus
+                          color: free
+                            ? theme.colors.brand
+                            : isPaidStatus
                             ? theme.colors.mintDark
                             : theme.colors.danger,
-                          background: isPaidStatus
+                          background: free
+                            ? `${theme.colors.brand}14`
+                            : isPaidStatus
                             ? `${theme.colors.mint}1A`
                             : `${theme.colors.danger}14`,
                         }}
@@ -303,7 +326,9 @@ export default function Payments() {
                         <span
                           style={{
                             ...styles.badgeDot,
-                            background: isPaidStatus
+                            background: free
+                              ? theme.colors.brand
+                              : isPaidStatus
                               ? theme.colors.mint
                               : theme.colors.danger,
                           }}
@@ -312,26 +337,32 @@ export default function Payments() {
                       </span>
                     </td>
                     <td style={styles.td}>
-                      <button
-                        onClick={() => savePayment(student)}
-                        disabled={paidThisMonth || isSaving}
-                        style={{
-                          ...styles.saveBtn,
-                          background: paidThisMonth
-                            ? "#DDE4E2"
-                            : theme.colors.mint,
-                          color: paidThisMonth
-                            ? theme.colors.inkMuted
-                            : "#FFFFFF",
-                          cursor:
-                            paidThisMonth || isSaving
-                              ? "not-allowed"
-                              : "pointer",
-                          opacity: isSaving ? 0.7 : 1,
-                        }}
-                      >
-                        {paidThisMonth ? "Paid" : isSaving ? "Saving…" : "Save"}
-                      </button>
+                      {free ? (
+                        <span style={{ color: theme.colors.inkMuted, fontSize: 12.5 }}>
+                          —
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => savePayment(student)}
+                          disabled={paidThisMonth || isSaving}
+                          style={{
+                            ...styles.saveBtn,
+                            background: paidThisMonth
+                              ? "#DDE4E2"
+                              : theme.colors.mint,
+                            color: paidThisMonth
+                              ? theme.colors.inkMuted
+                              : "#FFFFFF",
+                            cursor:
+                              paidThisMonth || isSaving
+                                ? "not-allowed"
+                                : "pointer",
+                            opacity: isSaving ? 0.7 : 1,
+                          }}
+                        >
+                          {paidThisMonth ? "Paid" : isSaving ? "Saving…" : "Save"}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

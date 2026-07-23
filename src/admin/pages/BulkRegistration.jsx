@@ -26,6 +26,7 @@ const emptyRow = () => ({
   fullName: "",
   className: "",
   shift: "",
+  feeType: "Free",
   monthlyFee: "",
   parentPhone: "",
   studentPhone: "",
@@ -75,6 +76,15 @@ export default function BulkRegistration() {
   const handleChange = (index, field, value) => {
     const data = [...students];
     data[index][field] = value;
+    setStudents(data);
+  };
+
+  const handleFeeTypeChange = (index, value) => {
+    const data = [...students];
+    data[index].feeType = value;
+    if (value === "Free") {
+      data[index].monthlyFee = "0";
+    }
     setStudents(data);
   };
 
@@ -133,12 +143,15 @@ export default function BulkRegistration() {
           photoURL = await getDownloadURL(photoRef);
         }
 
+        const finalMonthlyFee = student.feeType === "Free" ? "0" : student.monthlyFee;
+
         await setDoc(doc(db, "students", studentId), {
           studentId,
           fullName: student.fullName,
           className: student.className,
           shift: student.shift,
-          monthlyFee: student.monthlyFee,
+          feeType: student.feeType,
+          monthlyFee: finalMonthlyFee,
           parentPhone: student.parentPhone,
           studentPhone: student.studentPhone,
           district: student.district,
@@ -159,7 +172,8 @@ export default function BulkRegistration() {
           studentName: student.fullName,
           studentPhone: student.studentPhone,
           parentPhone: student.parentPhone,
-          monthlyFee: student.monthlyFee,
+          feeType: student.feeType,
+          monthlyFee: finalMonthlyFee,
         });
 
         if (student.className) {
@@ -230,7 +244,7 @@ export default function BulkRegistration() {
             style={{
               width: "100%",
               borderCollapse: "collapse",
-              minWidth: 1200,
+              minWidth: 1300,
             }}
           >
             <thead>
@@ -238,6 +252,7 @@ export default function BulkRegistration() {
                 <th style={th}>Full Name</th>
                 <th style={th}>Class Name</th>
                 <th style={th}>Shift</th>
+                <th style={th}>Fee Type</th>
                 <th style={th}>Monthly Fee ($)</th>
                 <th style={th}>Parent Phone</th>
                 <th style={th}>Student Phone</th>
@@ -298,11 +313,28 @@ export default function BulkRegistration() {
                   </td>
 
                   <td style={td}>
-                    <input
+                    <select
                       style={input}
+                      value={student.feeType}
+                      onChange={(e) =>
+                        handleFeeTypeChange(index, e.target.value)
+                      }
+                    >
+                      <option value="Free">🆓 Free</option>
+                      <option value="Paid">💵 Paid</option>
+                    </select>
+                  </td>
+
+                  <td style={td}>
+                    <input
+                      style={{
+                        ...input,
+                        opacity: student.feeType === "Free" ? 0.4 : 1,
+                      }}
                       type="number"
                       placeholder="0.00"
-                      value={student.monthlyFee}
+                      disabled={student.feeType === "Free"}
+                      value={student.feeType === "Free" ? "0" : student.monthlyFee}
                       onChange={(e) =>
                         handleChange(index, "monthlyFee", e.target.value)
                       }

@@ -32,6 +32,7 @@ export default function AddStudent() {
     fullName: "",
     className: "",
     shift: "",
+    feeType: "Free",
     monthlyFee: "",
     parentPhone: "",
     studentPhone: "",
@@ -49,6 +50,15 @@ export default function AddStudent() {
     setStudent({
       ...student,
       [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleFeeTypeChange = (e) => {
+    const value = e.target.value;
+    setStudent({
+      ...student,
+      feeType: value,
+      monthlyFee: value === "Free" ? "0" : student.monthlyFee,
     });
   };
 
@@ -94,6 +104,11 @@ export default function AddStudent() {
         return;
       }
 
+      if (student.feeType === "Paid" && !String(student.monthlyFee).trim()) {
+        alert("Fadlan geli Qiimaha Fee-ga bishii (Paid)");
+        return;
+      }
+
       setSaving(true);
 
       const existingSnap = await getDocs(collection(db, "students"));
@@ -111,12 +126,15 @@ export default function AddStudent() {
         photoURL = await getDownloadURL(photoRef);
       }
 
+      const finalMonthlyFee = student.feeType === "Free" ? "0" : student.monthlyFee;
+
       await setDoc(doc(db, "students", studentId), {
         studentId,
         fullName: student.fullName,
         className: student.className,
         shift: student.shift,
-        monthlyFee: student.monthlyFee,
+        feeType: student.feeType,
+        monthlyFee: finalMonthlyFee,
         parentPhone: student.parentPhone,
         studentPhone: student.studentPhone,
         district: student.district,
@@ -137,7 +155,8 @@ export default function AddStudent() {
         studentName: student.fullName,
         studentPhone: student.studentPhone,
         parentPhone: student.parentPhone,
-        monthlyFee: student.monthlyFee,
+        feeType: student.feeType,
+        monthlyFee: finalMonthlyFee,
       });
 
       await attachStudentToClassTeachers(
@@ -152,6 +171,7 @@ export default function AddStudent() {
         fullName: "",
         className: "",
         shift: "",
+        feeType: "Free",
         monthlyFee: "",
         parentPhone: "",
         studentPhone: "",
@@ -261,16 +281,30 @@ export default function AddStudent() {
             </select>
           </Field>
 
-          <Field icon={Wallet} label="Monthly Fee ($)">
-            <input
+          <Field icon={Wallet} label="Fee Type">
+            <select
               style={input}
-              type="number"
-              name="monthlyFee"
-              placeholder="0.00"
-              value={student.monthlyFee}
-              onChange={handleChange}
-            />
+              name="feeType"
+              value={student.feeType}
+              onChange={handleFeeTypeChange}
+            >
+              <option value="Free">🆓 Free</option>
+              <option value="Paid">💵 Paid</option>
+            </select>
           </Field>
+
+          {student.feeType === "Paid" && (
+            <Field icon={Wallet} label="Monthly Fee ($)">
+              <input
+                style={input}
+                type="number"
+                name="monthlyFee"
+                placeholder="0.00"
+                value={student.monthlyFee}
+                onChange={handleChange}
+              />
+            </Field>
+          )}
 
           <Field icon={Phone} label="Parent Phone">
             <input
