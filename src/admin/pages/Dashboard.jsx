@@ -379,10 +379,10 @@ export default function Dashboard() {
           >
             <p style={{ margin: "0 0 6px", fontSize: 14, opacity: 0.85 }}>Welcome back,</p>
             <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, lineHeight: 1.15 }}>
-              RESING SCHOOL!
+              RISING STAR PRIMARY & SECONDRY SCHOOL!
             </h1>
             <p style={{ margin: "10px 0 20px", fontSize: 14, opacity: 0.9, maxWidth: 420 }}>
-              Smart Management, Better Education, Brighter Future.
+              Smart Management, EDUCATION IS LIFE IT SELF.
             </p>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <button
