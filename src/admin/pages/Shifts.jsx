@@ -373,7 +373,7 @@ export default function Shifts() {
                     </thead>
                     <tbody>
                       {group.records.map((r) => (
-                        <tr key={r.id} style={{ borderTop: "1px solid #F3F4F6" }}>
+                        <tr key={r.id} style={{ borderTop: "1px solid #94b2f0" }}>
                           <td style={{ padding: "10px 0", color: "#111827", fontWeight: 600 }}>
                             {formatDateTime(r.clockInAt)}
                           </td>

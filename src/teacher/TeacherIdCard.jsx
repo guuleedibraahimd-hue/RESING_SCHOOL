@@ -215,6 +215,14 @@ function CardStyles() {
         min-width: 0;
       }
 
+      .tidc-photo-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex-shrink: 0;
+        gap: 14px;
+      }
+
       .tidc-photo-wrap {
         width: 92px;
         flex-shrink: 0;
@@ -222,6 +230,30 @@ function CardStyles() {
         align-items: flex-start;
         justify-content: center;
         padding-top: 2px;
+      }
+
+      .tidc-signature-block {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        width: 92px;
+      }
+      .tidc-signature-svg { display: block; }
+      .tidc-signature-line {
+        width: 82px;
+        height: 1px;
+        background: #16202b;
+        margin-top: 2px;
+      }
+      .tidc-signature-label {
+        font-size: 6.6px;
+        font-weight: 800;
+        color: #16202b;
+        letter-spacing: 0.3px;
+        text-align: center;
+        margin-top: 3px;
+        white-space: nowrap;
       }
       .tidc-photo {
         width: 90px;
@@ -552,12 +584,28 @@ function CardFront({ teacher, teacherUsername }) {
             </div>
           </div>
 
-          <div className="tidc-photo-wrap">
-            {teacher?.teacherPhoto ? (
-              <img className="tidc-photo" src={teacher.teacherPhoto} alt={fullNameText} />
-            ) : (
-              <div className="tidc-photo-placeholder">No Photo</div>
-            )}
+          <div className="tidc-photo-col">
+            <div className="tidc-photo-wrap">
+              {teacher?.teacherPhoto ? (
+                <img className="tidc-photo" src={teacher.teacherPhoto} alt={fullNameText} />
+              ) : (
+                <div className="tidc-photo-placeholder">No Photo</div>
+              )}
+            </div>
+
+            <div className="tidc-signature-block">
+              <svg className="tidc-signature-svg" viewBox="0 0 90 34" width="82" height="30">
+                <path
+                  d="M8,26 C12,10 16,28 22,14 C26,4 30,24 34,16 L40,6 L44,26 C48,18 52,22 56,12 C60,4 64,20 68,14 C71,10 74,16 76,10"
+                  stroke="#1c3fae"
+                  strokeWidth="2"
+                  fill="none"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="tidc-signature-line" />
+              <div className="tidc-signature-label">PRINCIPAL'S SIGNATURE</div>
+            </div>
           </div>
         </div>
 
@@ -654,11 +702,18 @@ export default function TeacherIdCard({ teacher, teacherUsername }) {
     const printWindow = window.open("", "_blank", "width=900,height=650");
     if (!printWindow) return;
 
-    const frontHtml = document.getElementById("tidc-print-front")?.outerHTML || "";
-    const backHtml = document.getElementById("tidc-print-back")?.outerHTML || "";
-    const stylesHtml = Array.from(document.querySelectorAll("style"))
-      .map((s) => s.outerHTML)
-      .join("\n");
+    const frontEl = document.getElementById("tidc-print-front");
+    const backEl = document.getElementById("tidc-print-back");
+    if (!frontEl || !backEl) return;
+
+    const frontHtml = frontEl.outerHTML;
+    const backHtml = backEl.outerHTML;
+
+    // Grab only the card's own <style> block (rendered by <CardStyles/>),
+    // not every style tag on the host page — prevents unrelated app
+    // styles from leaking into the print window.
+    const cardStyleTag = document.querySelector("style");
+    const stylesHtml = cardStyleTag ? cardStyleTag.outerHTML : "";
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -668,8 +723,22 @@ export default function TeacherIdCard({ teacher, teacherUsername }) {
           <meta charset="utf-8" />
           ${stylesHtml}
           <style>
-            body { margin: 0; padding: 24px; display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; background: #eee; font-family: sans-serif; }
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+            body {
+              margin: 0;
+              padding: 24px;
+              display: flex;
+              gap: 24px;
+              flex-wrap: wrap;
+              justify-content: center;
+              background: #eee;
+              font-family: sans-serif;
+            }
             .tidc-card { box-shadow: 0 4px 14px rgba(0,0,0,0.2); }
+            @media print {
+              body { background: #fff; padding: 0; }
+              .tidc-card-outer { page-break-inside: avoid; }
+            }
           </style>
         </head>
         <body>
@@ -679,10 +748,33 @@ export default function TeacherIdCard({ teacher, teacherUsername }) {
       </html>
     `);
     printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 400);
+
+    // Wait for every image (teacher photo + both QR codes) to finish
+    // loading before triggering print — otherwise the browser can print
+    // a blank box where the QR or photo should be.
+    const waitForImages = () => {
+      const imgs = Array.from(printWindow.document.images);
+      const pending = imgs.filter((img) => !img.complete);
+      if (pending.length === 0) {
+        printWindow.focus();
+        printWindow.print();
+        return;
+      }
+      let remaining = pending.length;
+      pending.forEach((img) => {
+        const done = () => {
+          remaining -= 1;
+          if (remaining === 0) {
+            printWindow.focus();
+            printWindow.print();
+          }
+        };
+        img.addEventListener("load", done, { once: true });
+        img.addEventListener("error", done, { once: true });
+      });
+    };
+
+    setTimeout(waitForImages, 50);
   };
 
   return (
