@@ -77,6 +77,50 @@ function TopbarStyles() {
   );
 }
 
+// ---------------------------------------------------------------------
+// Profile avatar photo — same root cause as the Teacher ID Card: some
+// records have a stale/wrong Firebase Storage URL saved under
+// "teacherPhoto" that still loads successfully (so a plain onError check
+// never catches it), while "photoUrl" (the base64 photo uploaded directly
+// from the teacher's own profile form) reliably holds the correct image.
+// So photoUrl is tried FIRST here, and teacherPhoto is only a fallback
+// for older records that never got a photoUrl saved. If whichever image
+// is tried actually fails to load (bad/expired link, network error) it
+// automatically advances to the next candidate.
+// ---------------------------------------------------------------------
+function getStoredPhotoCandidates() {
+  return [
+    localStorage.getItem("photoUrl"),
+    localStorage.getItem("teacherPhoto"),
+    localStorage.getItem("photo"),
+    localStorage.getItem("imageUrl"),
+  ].filter((v) => typeof v === "string" && v.trim().length > 0);
+}
+
+function ProfileAvatar({ teacherName }) {
+  const candidates = getStoredPhotoCandidates();
+  const [idx, setIdx] = useState(0);
+  const initial = (teacherName || "T").charAt(0).toUpperCase();
+
+  if (candidates.length === 0 || idx >= candidates.length) {
+    return initial;
+  }
+
+  return (
+    <img
+      src={candidates[idx]}
+      alt="Teacher"
+      style={{
+        width: "100%",
+        height: "100%",
+        borderRadius: "50%",
+        objectFit: "cover",
+      }}
+      onError={() => setIdx((i) => i + 1)}
+    />
+  );
+}
+
 export default function Topbar({ teacherName = "Teacher" }) {
   const navigate = useNavigate();
   const { allMessages, unreadCount, markAsRead, markAllAsRead } = useMessages();
@@ -306,22 +350,7 @@ export default function Topbar({ teacherName = "Teacher" }) {
               flexShrink: 0,
             }}
           >
-            {localStorage.getItem("teacherPhoto") ? (
-              <img
-                src={localStorage.getItem("teacherPhoto")}
-                alt="Teacher"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                }}
-              />
-            ) : (
-              (localStorage.getItem("teacherName") || "T")
-                .charAt(0)
-                .toUpperCase()
-            )}
+            <ProfileAvatar teacherName={localStorage.getItem("teacherName")} />
           </div>
         </div>
 
