@@ -138,9 +138,9 @@ export default function Home() {
           <h2 className="hero-subtitle">School Management  System</h2>
           <div className="hero-rule" />
           <p className="hero-lede">
-            A complete solution to manage your school efficiently.
+            Education is life it self.
             <br />
-            Smart. Simple. Secure.
+          
           </p>
         </div>
 
