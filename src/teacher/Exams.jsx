@@ -22,15 +22,8 @@ import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import MobileBottomNav from "./MobileBottomNav";
 
-const subjects = [
-  "Math",
-  "English",
-  "Science",
-  "Arabic",
-  "Somali",
-  "Islamic Studies",
-  "Social Studies",
-];
+// Nuucyada Exam-ka ee macallinku dooran karo
+const examTypes = ["Monthly One", "Term", "Monthly Two", "Final"];
 
 function ExamsStyles() {
   return (
@@ -66,6 +59,8 @@ export default function Exams() {
   const [examDate, setExamDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
+  // Nuuca Exam-ka: Monthly One / Term / Monthly Two / Final
+  const [examType, setExamType] = useState("");
   // Fayl-ka PDF-ga exam-ka ee macallinku doorto
   const [examFile, setExamFile] = useState(null);
   // Sawirka profile-ka macallinka - waxaa loo isticmaali doonaa fariinta Messages
@@ -73,6 +68,7 @@ export default function Exams() {
 
   // Class-yada macallinku wax ku dhigo, iyo doorashada class/subject
   const [classes, setClasses] = useState([]);
+  const [subjects, setSubjects] = useState([]); // <-- subjects-ka waxaa laga soo saarayaa Firestore
   const [selectedClass, setSelectedClass] = useState("");
   const [subject, setSubject] = useState("");
 
@@ -100,10 +96,18 @@ export default function Exams() {
         setTeacherPhoto(data.photoUrl || "");
 
         const teacherClasses = Array.isArray(data.classes) ? data.classes : [];
+
+        // Class-yada macallinka
         const uniqueClassNames = Array.from(
           new Set(teacherClasses.map((c) => c.className).filter(Boolean))
         );
         setClasses(uniqueClassNames.map((className) => ({ id: className, className })));
+
+        // Subjects-ka waxaa laga soo saarayaa isla classes array-ga (field: subject)
+        const uniqueSubjects = Array.from(
+          new Set(teacherClasses.map((c) => c.subject).filter(Boolean))
+        );
+        setSubjects(uniqueSubjects);
       }
     } catch (err) {
       console.log(err);
@@ -144,7 +148,7 @@ export default function Exams() {
   }
 
   // Ku shub PDF-ga exam-ka Storage, kadibna hal fariin oo keliya
-  // ugu dir Admin - magaca exam-ka, taariikhda iyo PDF-ka.
+  // ugu dir Admin - magaca exam-ka, nuuca, taariikhda iyo PDF-ka.
   const saveAndSendExam = async () => {
     if (!examName) {
       alert("Fadlan geli magaca Exam-ka");
@@ -153,6 +157,11 @@ export default function Exams() {
 
     if (!selectedClass || !subject) {
       alert("Fadlan dooro Class-ka iyo Subject-ka");
+      return;
+    }
+
+    if (!examType) {
+      alert("Fadlan dooro Nuuca Exam-ka");
       return;
     }
 
@@ -176,9 +185,10 @@ export default function Exams() {
         senderRole: "Teacher",
         senderId: teacherId,
         senderPhoto: teacherPhoto,
-        text: `Macallinka ${teacherName} wuxuu soo diray exam-ka "${examName}" - Fasalka ${selectedClass} (${subject}).`,
+        text: `Macallinka ${teacherName} wuxuu soo diray exam-ka "${examName}" (${examType}) - Fasalka ${selectedClass} (${subject}).`,
         type: "exam",
         examName,
+        examType,
         examDate,
         className: selectedClass,
         subject,
@@ -191,6 +201,7 @@ export default function Exams() {
       alert("Exam-ka  si guul leh ayaa loogu diray maamulka.");
 
       setExamName("");
+      setExamType("");
       setExamFile(null);
       setSelectedClass("");
       setSubject("");
@@ -247,7 +258,25 @@ export default function Exams() {
                 >
                   <option value="">Select Subject</option>
                   {subjects.map((s) => (
-                    <option key={s}>{s}</option>
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={label}>Exam Type</label>
+                <select
+                  style={input}
+                  value={examType}
+                  onChange={(e) => setExamType(e.target.value)}
+                >
+                  <option value="">Select Exam Type</option>
+                  {examTypes.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -334,6 +363,7 @@ export default function Exams() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ color: "#fff", fontWeight: 600, fontSize: 14 }}>
                         {exam.examName}
+                        {exam.examType ? ` • ${exam.examType}` : ""}
                       </div>
                       <div style={{ color: "#94A3B8", fontSize: 12.5, marginTop: 2 }}>
                         Fasalka {exam.className || "—"} • {exam.subject || "—"} &nbsp;•&nbsp;
