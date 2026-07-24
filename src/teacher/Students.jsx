@@ -362,37 +362,6 @@ export default function Students() {
                       </div>
                     </div>
                   )}
-
-                  <div style={profileRow}>
-                    <span style={profileLabel}>Student ID</span>
-                    <span style={{ color: "#fff" }}>{selectedStudent.studentId || "-"}</span>
-                  </div>
-                  <div style={profileRow}>
-                    <span style={profileLabel}>Student Phone</span>
-                    <span style={{ color: "#fff" }}>{selectedStudent.studentPhone || "-"}</span>
-                  </div>
-                  <div style={profileRow}>
-                    <span style={profileLabel}>Parent Phone</span>
-                    <span style={{ color: "#fff" }}>{selectedStudent.parentPhone || "-"}</span>
-                  </div>
-                  <div style={profileRow}>
-                    <span style={profileLabel}>District</span>
-                    <span style={{ color: "#fff" }}>{selectedStudent.district || "-"}</span>
-                  </div>
-                  <div style={profileRow}>
-                    <span style={profileLabel}>Previous School</span>
-                    <span style={{ color: "#fff" }}>
-                      {selectedStudent.previousSchool || "-"}
-                    </span>
-                  </div>
-                  <div style={profileRow}>
-                    <span style={profileLabel}>Orphan Status</span>
-                    <span style={{ color: "#fff" }}>{selectedStudent.orphanStatus || "-"}</span>
-                  </div>
-                  <div style={profileRow}>
-                    <span style={profileLabel}>Monthly Fee</span>
-                    <span style={{ color: "#fff" }}>{selectedStudent.monthlyFee || "-"}</span>
-                  </div>
                 </div>
               )}
             </div>
