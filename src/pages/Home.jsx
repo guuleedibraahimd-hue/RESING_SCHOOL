@@ -169,6 +169,7 @@ export default function Home() {
   const [helpOpen, setHelpOpen] = useState(false);
   const menuRef = useRef(null);
   const helpRef = useRef(null);
+  const rolesRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -182,6 +183,11 @@ export default function Home() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const scrollToRoles = (e) => {
+    e.preventDefault();
+    rolesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <div className="home">
@@ -263,10 +269,10 @@ export default function Home() {
             A complete solution to manage students, teachers, classes,
             examinations, and more.
           </p>
-          <Link to="/get-started" className="hero-cta">
+          <a href="#roles" className="hero-cta" onClick={scrollToRoles}>
             <span className="hero-cta-icon">▦</span>
             Get Started
-          </Link>
+          </a>
         </div>
 
         <div className="hero-art">
@@ -293,7 +299,7 @@ export default function Home() {
         ))}
       </section>
 
-      <section className="roles-grid">
+      <section className="roles-grid" id="roles" ref={rolesRef}>
         {ROLES.map((role) => (
           <Link key={role.key} className={`role-card role-${role.key}`} to={role.to}>
             <span className="role-corner" aria-hidden="true" />

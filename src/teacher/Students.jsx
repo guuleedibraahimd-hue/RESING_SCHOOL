@@ -258,6 +258,7 @@ export default function Students() {
                   <table className="st-table">
                     <thead>
                       <tr>
+                        <th style={th}>Photo</th>
                         <th style={th}>Name</th>
                         <th style={th}>Class</th>
                         <th style={th}>Student Phone</th>
@@ -273,12 +274,20 @@ export default function Students() {
                         const ac = attendanceColor(pct);
                         return (
                           <tr key={s.id}>
-                            <td style={{ ...td, display: "flex", alignItems: "center", gap: 10 }}>
-                              <div style={avatar}>
-                                {(s.fullName || "?").charAt(0).toUpperCase()}
-                              </div>
-                              {s.fullName}
+                            <td style={td}>
+                              {s.studentPhoto ? (
+                                <img
+                                  src={s.studentPhoto}
+                                  alt={s.fullName || "Student"}
+                                  style={avatarPhoto}
+                                />
+                              ) : (
+                                <div style={avatar}>
+                                  {(s.fullName || "?").charAt(0).toUpperCase()}
+                                </div>
+                              )}
                             </td>
+                            <td style={td}>{s.fullName}</td>
                             <td style={td}>{s.className}</td>
                             <td style={td}>{s.studentPhone || "-"}</td>
                             <td style={td}>{s.parentPhone || "-"}</td>
@@ -467,6 +476,14 @@ const avatar = {
   fontWeight: "bold",
   fontSize: 13,
   flexShrink: 0,
+};
+const avatarPhoto = {
+  width: 32,
+  height: 32,
+  borderRadius: "50%",
+  objectFit: "cover",
+  flexShrink: 0,
+  display: "block",
 };
 const btnSecondary = {
   background: "#111827",
