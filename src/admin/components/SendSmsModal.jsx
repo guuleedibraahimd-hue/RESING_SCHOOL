@@ -117,7 +117,6 @@ export default function SendSmsModal({ onClose }) {
 
     try {
       setSending(true);
-      const functions = getFunctions(risingApp);
       const sendBulkSms = httpsCallable(functions, "sendBulkSms");
       const res = await sendBulkSms({
         audience,

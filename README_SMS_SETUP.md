@@ -1,3 +1,4 @@
+//readme_sms_setup.md
 # Send SMS Feature — Setup Guide (Hormuud SMS API)
 
 Waxaan kuu sameeyay 3 file:
