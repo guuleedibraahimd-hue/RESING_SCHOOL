@@ -9,6 +9,19 @@
 // NOTE: this is the teacher's own self-view of their ID card (shown on
 // their Profile page). There is intentionally no print/download control
 // here — teachers can view their card but cannot print or export it.
+//
+// On first view (if no card doc exists yet), the full teacher record is
+// duplicated into the `teacher_id` Firestore collection, keyed by the
+// teacher's username, so issued cards have their own persistent snapshot.
+
+import { useEffect, useState } from "react";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "../firebase/firebase";
 
 const SCHOOL = {
   name1: "RISING STAR",
@@ -669,6 +682,37 @@ function CardBack() {
 // print, or otherwise take a copy of their own ID card — it is
 // view-only on their Profile page.
 export default function TeacherIdCard({ teacher, teacherUsername }) {
+  // Duplicate the full teacher record into `teacher_id/{teacherUsername}`
+  // the first time this card is viewed, so each issued card has its own
+  // persistent snapshot independent of later edits to the original
+  // teacher record.
+  useEffect(() => {
+    if (!teacherUsername || !teacher) return;
+
+    let cancelled = false;
+
+    async function ensureCardRecord() {
+      try {
+        const cardRef = doc(db, "teacher_id", teacherUsername);
+        const existing = await getDoc(cardRef);
+        if (!existing.exists() && !cancelled) {
+          await setDoc(cardRef, {
+            ...teacher,
+            teacherUsername,
+            issuedAt: serverTimestamp(),
+          });
+        }
+      } catch (err) {
+        console.error("Failed to save teacher_id record:", err);
+      }
+    }
+
+    ensureCardRecord();
+    return () => {
+      cancelled = true;
+    };
+  }, [teacherUsername, teacher]);
+
   return (
     <div>
       <CardStyles />

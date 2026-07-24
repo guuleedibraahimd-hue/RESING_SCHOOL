@@ -584,26 +584,7 @@ export default function StudentIdCard({ student, studentId }) {
         </div>
       </div>
 
-      <div className="idc-print-hide" style={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
-        <button
-          onClick={handlePrint}
-          disabled={saving}
-          style={{
-            background: "#14532d",
-            color: "#fff",
-            border: "none",
-            borderRadius: 10,
-            padding: "12px 28px",
-            fontWeight: 700,
-            fontSize: 14,
-            cursor: saving ? "default" : "pointer",
-            opacity: saving ? 0.7 : 1,
-            boxShadow: "0 10px 24px rgba(20,83,45,0.35)",
-          }}
-        >
-    
-        </button>
-      </div>
+      
 
     </div>
   );
