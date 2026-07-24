@@ -1,4 +1,3 @@
-//sms/index.js
 /**
  * Import function triggers from their respective submodules:
  *
@@ -44,14 +43,29 @@ async function getHormuudToken(username, password) {
   payload.append("username", username);
   payload.append("password", password);
 
-  const res = await axios.post(TOKEN_URL, payload.toString(), {
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-  });
+  try {
+    const res = await axios.post(TOKEN_URL, payload.toString(), {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
 
-  if (!res.data || !res.data.access_token) {
-    throw new Error("Ma helin token Hormuud (access_token) — hubi username/password.");
+    if (!res.data || !res.data.access_token) {
+      logger.error("Hormuud token response missing access_token:", res.data);
+      throw new HttpsError(
+        "internal",
+        "Ma helin token Hormuud (access_token) — hubi username/password."
+      );
+    }
+    return res.data.access_token;
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+
+    const hormuudError = err.response?.data || err.message;
+    logger.error("Hormuud token error:", hormuudError);
+    throw new HttpsError(
+      "internal",
+      `Hormuud token error: ${JSON.stringify(hormuudError)}`
+    );
   }
-  return res.data.access_token;
 }
 
 async function sendOneSms(token, mobile, message, senderid) {
