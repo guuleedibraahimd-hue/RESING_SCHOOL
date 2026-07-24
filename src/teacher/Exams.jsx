@@ -55,7 +55,6 @@ function ExamsStyles() {
 }
 
 export default function Exams() {
-  const [examName, setExamName] = useState("");
   const [examDate, setExamDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
@@ -148,13 +147,8 @@ export default function Exams() {
   }
 
   // Ku shub PDF-ga exam-ka Storage, kadibna hal fariin oo keliya
-  // ugu dir Admin - magaca exam-ka, nuuca, taariikhda iyo PDF-ka.
+  // ugu dir Admin - nuuca, taariikhda iyo PDF-ka.
   const saveAndSendExam = async () => {
-    if (!examName) {
-      alert("Fadlan geli magaca Exam-ka");
-      return;
-    }
-
     if (!selectedClass || !subject) {
       alert("Fadlan dooro Class-ka iyo Subject-ka");
       return;
@@ -185,9 +179,8 @@ export default function Exams() {
         senderRole: "Teacher",
         senderId: teacherId,
         senderPhoto: teacherPhoto,
-        text: `Macallinka ${teacherName} wuxuu soo diray exam-ka "${examName}" (${examType}) - Fasalka ${selectedClass} (${subject}).`,
+        text: `Macallinka ${teacherName} wuxuu soo diray exam-ka (${examType}) - Fasalka ${selectedClass} (${subject}).`,
         type: "exam",
-        examName,
         examType,
         examDate,
         className: selectedClass,
@@ -200,7 +193,6 @@ export default function Exams() {
 
       alert("Exam-ka  si guul leh ayaa loogu diray maamulka.");
 
-      setExamName("");
       setExamType("");
       setExamFile(null);
       setSelectedClass("");
@@ -281,8 +273,6 @@ export default function Exams() {
                 </select>
               </div>
 
-              
-
               <div>
                 <label style={label}>Exam Date</label>
                 <input
@@ -354,8 +344,7 @@ export default function Exams() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ color: "#fff", fontWeight: 600, fontSize: 14 }}>
-                        {exam.examName}
-                        {exam.examType ? ` • ${exam.examType}` : ""}
+                        {exam.examType || "—"}
                       </div>
                       <div style={{ color: "#94A3B8", fontSize: 12.5, marginTop: 2 }}>
                         Fasalka {exam.className || "—"} • {exam.subject || "—"} &nbsp;•&nbsp;
