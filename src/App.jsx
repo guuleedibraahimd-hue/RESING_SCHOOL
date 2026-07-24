@@ -39,7 +39,7 @@ import TeacherStudents from "./teacher/Students";
 import TeacherResults from "./teacher/Results";
 import TeacherProfile from "./teacher/Profile";
 import TeacherMessages from "./teacher/Messages";
-import TeacherTimetable from "./teacher/Timetable";
+import TeacherTimetable from "./teacher/ViewTimetable";
 
 // CASHIER
 import CashierLayout from "./cashier/Layout";
@@ -69,7 +69,6 @@ function App() {
         <Route path="/admin/exam-cards" element={<ExamCards />} />
         <Route path="/admin/id-cards" element={<AllIdCards />} />
         <Route path="/teacher/timetable" element={<TeacherTimetable />} />
-        <Route path="/teacher/timetable" element={<ViewTimetable />} />
 
         <Route path="/student/dashboard" element={<StudentDashboard />} />
         <Route path="/parent/dashboard" element={<ParentDashboard />} />
