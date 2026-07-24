@@ -39,6 +39,7 @@ import TeacherStudents from "./teacher/Students";
 import TeacherResults from "./teacher/Results";
 import TeacherProfile from "./teacher/Profile";
 import TeacherMessages from "./teacher/Messages";
+import TeacherTimetable from "./teacher/Timetable";
 
 // CASHIER
 import CashierLayout from "./cashier/Layout";
@@ -67,6 +68,7 @@ function App() {
         <Route path="/cashier/receipts" element={<CashierReports />} />
         <Route path="/admin/exam-cards" element={<ExamCards />} />
         <Route path="/admin/id-cards" element={<AllIdCards />} />
+        <Route path="/teacher/timetable" element={<TeacherTimetable />} />
 
         <Route path="/student/dashboard" element={<StudentDashboard />} />
         <Route path="/parent/dashboard" element={<ParentDashboard />} />
@@ -92,7 +94,7 @@ function App() {
         <Route path="/admin/timetable" element={<Timetable />} />
         <Route path="/admin/exam-timetable" element={<ExamTimetable />} />
         <Route path="/admin/shifts" element={<Shifts />} />
-
+        
         {/* Dhammaan boggagga Teacher waxay ku jiraan MessagesProvider hal mar,
             si Sidebar/Topbar/Messages ay isku wadaagaan xogta fariimaha */}
         <Route
