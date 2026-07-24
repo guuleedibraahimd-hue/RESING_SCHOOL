@@ -6,7 +6,7 @@ import { Search, Printer, X, Receipt as ReceiptIcon } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 
-const SCHOOL_NAME = "Rising School";
+const SCHOOL_NAME = "RISING STAR PRIMARY & SECONDARY SCHOOL";
 
 function formatDate(value) {
   if (!value) return "—";
@@ -41,8 +41,6 @@ export default function Receipts() {
       setLoading(true);
       const snap = await getDocs(collection(db, "receipts"));
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      // Ugu horeeya rasiidka ugu dambeeyay (lambar ugu weyn ama createdAt
-      // ugu dambeeyay).
       list.sort((a, b) => {
         const at = a.createdAt?.seconds || 0;
         const bt = b.createdAt?.seconds || 0;
@@ -263,9 +261,16 @@ export default function Receipts() {
   );
 }
 
-// Modal fudud oo u shaqeeya sida ReceiptModal.jsx, laakiin ka soo akhriya
-// xog rasiid oo hore loo kaydiyay (halkii uu ka kordhin lahaa lambar cusub).
+// Modal-ka daawashada rasiidka — waa isla design-ka warqadda cusub
+// (ReceiptModal.jsx), laakiin ka soo akhriya xog rasiid oo hore loo
+// kaydiyay (halkii uu ka kordhin lahaa lambar cusub).
 function ReceiptViewModal({ receipt, onClose }) {
+  const paidDate = receipt.paidAt?.seconds
+    ? new Date(receipt.paidAt.seconds * 1000)
+    : receipt.createdAt?.seconds
+    ? new Date(receipt.createdAt.seconds * 1000)
+    : new Date();
+
   return (
     <>
       <div className="rv-overlay">
@@ -282,47 +287,47 @@ function ReceiptViewModal({ receipt, onClose }) {
         <div className="rv-paper">
           <div className="rv-header">
             <div className="rv-school">{SCHOOL_NAME}</div>
-            <div className="rv-sub">Payment Receipt</div>
+            <div className="rv-sub">SCHOOL FEES RECEIPT</div>
+            <div className="rv-no">No. {receipt.receiptNo}</div>
           </div>
 
           <div className="rv-line" />
 
-          <div className="rv-row">
-            <span>No:</span>
-            <span className="rv-strong">{receipt.receiptNo}</span>
+          <div className="rv-field">
+            <span className="rv-label">Received from</span>
+            <span className="rv-value">{receipt.studentName || "—"}</span>
           </div>
-          <div className="rv-row">
-            <span>Date:</span>
-            <span>{formatDate(receipt.paidAt || receipt.createdAt)}</span>
+          <div className="rv-field">
+            <span className="rv-label">Class</span>
+            <span className="rv-value">{receipt.className || "—"}</span>
           </div>
-          <div className="rv-row">
-            <span>Academic Year:</span>
-            <span>{receipt.academicYear || "—"}</span>
+          <div className="rv-field">
+            <span className="rv-label">Month</span>
+            <span className="rv-value">{receipt.monthLabel || "—"}</span>
           </div>
-
-          <div className="rv-line" />
-
-          <div className="rv-row">
-            <span>Student:</span>
-            <span className="rv-strong">{receipt.studentName || "—"}</span>
+          <div className="rv-field">
+            <span className="rv-label">Academic Year</span>
+            <span className="rv-value">{receipt.academicYear || "—"}</span>
           </div>
-          <div className="rv-row">
-            <span>Class:</span>
-            <span>{receipt.className || "—"}</span>
+          <div className="rv-field">
+            <span className="rv-label">Date</span>
+            <span className="rv-value">{formatDate(paidDate)}</span>
           </div>
-          <div className="rv-row">
-            <span>Month:</span>
-            <span>{receipt.monthLabel || "—"}</span>
-          </div>
-
-          <div className="rv-line" />
-
-          <div className="rv-row rv-amount">
-            <span>Amount Paid:</span>
-            <span className="rv-strong">${Number(receipt.paidAmount || 0)}</span>
+          <div className="rv-field rv-amount">
+            <span className="rv-label">Amount</span>
+            <span className="rv-value rv-strong">
+              ${Number(receipt.paidAmount || 0)}
+            </span>
           </div>
 
           <div className="rv-line" />
+
+          {/* Received by / Signature: waa banaan si loogu saxiixdo
+              gacanta warqadda daabacan — marna kama imaanayo Firestore. */}
+          <div className="rv-signature-block">
+            <span className="rv-label">Received by</span>
+            <span className="rv-signature-line" />
+          </div>
 
           <div className="rv-footer">Mahadsanid!</div>
         </div>
@@ -359,21 +364,55 @@ function ReceiptViewModal({ receipt, onClose }) {
           color: #ffffff;
         }
         .rv-paper {
-          width: 302px;
-          background: #ffffff;
-          padding: 18px 16px;
-          font-family: 'Courier New', monospace;
+          width: 340px;
+          background: #FBF6E9;
+          padding: 22px 20px;
+          font-family: 'Georgia', 'Times New Roman', serif;
           color: #111827;
           box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+          border: 3px double #7a1f1f;
         }
-        .rv-header { text-align: center; margin-bottom: 10px; }
-        .rv-school { font-weight: 800; font-size: 15px; letter-spacing: 0.5px; }
-        .rv-sub { font-size: 11px; color: #6B7280; margin-top: 2px; }
-        .rv-line { border-top: 1px dashed #9CA3AF; margin: 8px 0; }
-        .rv-row { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 4px; }
-        .rv-strong { font-weight: 700; }
-        .rv-amount { font-size: 14px; }
-        .rv-footer { text-align: center; font-size: 12px; margin-top: 10px; font-weight: 700; }
+        .rv-header { text-align: center; margin-bottom: 12px; }
+        .rv-school {
+          font-weight: 800;
+          font-size: 15px;
+          letter-spacing: 0.3px;
+          color: #14532d;
+          text-transform: uppercase;
+        }
+        .rv-sub { font-size: 13px; font-weight: 700; color: #111827; margin-top: 4px; }
+        .rv-no { font-size: 11.5px; color: #111827; margin-top: 4px; font-weight: 700; }
+        .rv-line { border-top: 1px dashed #9CA3AF; margin: 10px 0; }
+        .rv-field {
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
+          font-size: 12.5px;
+          margin-bottom: 8px;
+        }
+        .rv-label { color: #374151; white-space: nowrap; }
+        .rv-value {
+          flex: 1;
+          border-bottom: 1px solid #9CA3AF;
+          padding-bottom: 1px;
+          font-weight: 600;
+          min-height: 14px;
+        }
+        .rv-strong { font-weight: 800; }
+        .rv-amount { font-size: 14px; margin-top: 4px; }
+        .rv-signature-block {
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
+          margin-top: 20px;
+          font-size: 12.5px;
+        }
+        .rv-signature-line {
+          flex: 1;
+          border-bottom: 1px solid #9CA3AF;
+          min-height: 18px;
+        }
+        .rv-footer { text-align: center; font-size: 12px; margin-top: 14px; font-weight: 700; }
 
         @media print {
           body * { visibility: hidden; }
