@@ -281,15 +281,7 @@ export default function Exams() {
                 </select>
               </div>
 
-              <div>
-                <label style={label}>Exam Name</label>
-                <input
-                  style={input}
-                  placeholder="e.g. Midterm Exam"
-                  value={examName}
-                  onChange={(e) => setExamName(e.target.value)}
-                />
-              </div>
+              
 
               <div>
                 <label style={label}>Exam Date</label>
