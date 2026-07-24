@@ -17,7 +17,7 @@ import {
   setDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../firebase"; // adjust path to your firebase init file
+import { db } from "../firebase/firebase";
 import schoolLogo from "../assets/rising-star-logo.png";
 
 const SCHOOL = {
