@@ -22,23 +22,19 @@ import Topbar from "./Topbar";
 import MobileBottomNav from "./MobileBottomNav";
 
 const dayOrder = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
+  "saturday",
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
 ];
 
 const dayColors = {
-  Monday: "#6D5DF0",
-  Tuesday: "#8B5CF6",
-  Wednesday: "#17A2B8",
-  Thursday: "#22C55E",
-  Friday: "#F59E0B",
-  Saturday: "#EF4444",
-  Sunday: "#EC4899",
+  saturday: "#6D5DF0",
+  sunday: "#8B5CF6",
+  monday: "#17A2B8",
+  tuesday: "#22C55E",
+  wednesday: "#F59E0B",
 };
 
 function ViewTimetableStyles() {
