@@ -20,6 +20,7 @@ import {
   CalendarDays,
   FileEdit,
   Loader2,
+  Pencil,
 } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
@@ -215,6 +216,7 @@ export default function ExamTimetable() {
   const [draftStartDate, setDraftStartDate] = useState("");
   const [draftEndDate, setDraftEndDate] = useState("");
   const [savingDates, setSavingDates] = useState(false);
+  const [deletingDay, setDeletingDay] = useState(null); // day key currently being deleted, for the summary table
 
   useEffect(() => {
     load();
@@ -299,6 +301,46 @@ export default function ExamTimetable() {
   function openClass(cls) {
     setSelectedClass(cls);
     setActiveDay(DAYS[0].key);
+  }
+
+  // Jump into the editor for a specific day (used by the "Edit" button in
+  // the read-only summary table below the slot editor).
+  function editDay(dayKey) {
+    setActiveDay(dayKey);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Fully delete a day's exam slots for the selected class — removes the
+  // examTimetable/{className}__{day} doc and clears that day out of every
+  // enrolled student's synced examTimetable field.
+  async function deleteDay(dayKey) {
+    if (!selectedClass) return;
+    const dayLabel = DAYS.find((d) => d.key === dayKey)?.label || dayKey;
+    const confirmed = window.confirm(
+      `Ma hubtaa inaad rabto inaad tirtirto dhammaan imtixaannada ${dayLabel} ee Fasalka ${selectedClass}?`
+    );
+    if (!confirmed) return;
+
+    const key = `${selectedClass}__${dayKey}`;
+    setDeletingDay(dayKey);
+    try {
+      await deleteDoc(doc(db, "examTimetable", key));
+      const updatedDocs = { ...examDocs };
+      delete updatedDocs[key];
+      setExamDocs(updatedDocs);
+
+      if (dayKey === activeDay) {
+        setDraftSlots([emptyExamSlot()]);
+        setDirty(false);
+      }
+
+      await syncStudentsExamTimetable(selectedClass, updatedDocs);
+    } catch (err) {
+      console.log(err);
+      alert("Khalad ayaa dhacay marka la tirtirayay: " + err.message);
+    } finally {
+      setDeletingDay(null);
+    }
   }
 
   // ---- Kaydiyo taariikhda bilowga iyo dhamaadka usbuuca imtixaanka
@@ -1004,6 +1046,9 @@ export default function ExamTimetable() {
                 selectedClass={selectedClass}
                 examDocs={examDocs}
                 teachers={teachers}
+                onEditDay={editDay}
+                onDeleteDay={deleteDay}
+                deletingDay={deletingDay}
               />
             </div>
           )}
@@ -1013,7 +1058,7 @@ export default function ExamTimetable() {
   );
 }
 
-function ExamWeekSummary({ selectedClass, examDocs, teachers }) {
+function ExamWeekSummary({ selectedClass, examDocs, teachers, onEditDay, onDeleteDay, deletingDay }) {
   const rows = DAYS.map((d) => {
     const key = `${selectedClass}__${d.key}`;
     const slots = withExamNumbers(examDocs[key]?.slots || []);
@@ -1040,48 +1085,100 @@ function ExamWeekSummary({ selectedClass, examDocs, teachers }) {
       </h3>
 
       <div className="et-table-wrap">
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 700 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 760 }}>
           <thead>
             <tr>
               <th style={thStyle}>Maalinta</th>
               <th style={thStyle}>Maadooyinka</th>
+              <th style={thStyle}></th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ day, slots }) => (
-              <tr key={day.key} style={{ borderTop: "1px solid rgba(139,108,245,0.12)" }}>
-                <td style={{ ...tdStyle, fontWeight: 700 }}>{day.label}</td>
-                <td style={tdStyle}>
-                  {slots.length === 0 ? (
-                    <span style={{ color: "#8b87ad" }}>Ma jiro imtixaan</span>
-                  ) : (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                      {slots.map((s) => {
-                        const teacherName = teachers[s.teacherId]?.fullName || s.teacherId || "-";
-                        return (
-                          <span
-                            key={s.id}
-                            style={{
-                              background: "rgba(245,158,11,0.1)",
-                              border: "1px solid rgba(245,158,11,0.3)",
-                              borderRadius: 20,
-                              padding: "5px 12px",
-                              color: "#FBBF24",
-                              fontWeight: 600,
-                              fontSize: 12,
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            #{s.examNumber} · {s.startTime}–{s.endTime} · {s.subject}
-                            {s.teacherId ? ` (${teacherName})` : ""}
-                          </span>
-                        );
-                      })}
+            {rows.map(({ day, slots }) => {
+              const hasSlots = slots.length > 0;
+              const isDeleting = deletingDay === day.key;
+              return (
+                <tr key={day.key} style={{ borderTop: "1px solid rgba(139,108,245,0.12)" }}>
+                  <td style={{ ...tdStyle, fontWeight: 700 }}>{day.label}</td>
+                  <td style={tdStyle}>
+                    {!hasSlots ? (
+                      <span style={{ color: "#8b87ad" }}>Ma jiro imtixaan</span>
+                    ) : (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {slots.map((s) => {
+                          const teacherName = teachers[s.teacherId]?.fullName || s.teacherId || "-";
+                          return (
+                            <span
+                              key={s.id}
+                              style={{
+                                background: "rgba(245,158,11,0.1)",
+                                border: "1px solid rgba(245,158,11,0.3)",
+                                borderRadius: 20,
+                                padding: "5px 12px",
+                                color: "#FBBF24",
+                                fontWeight: 600,
+                                fontSize: 12,
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              #{s.examNumber} · {s.startTime}–{s.endTime} · {s.subject}
+                              {s.teacherId ? ` (${teacherName})` : ""}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <button
+                        onClick={() => onEditDay(day.key)}
+                        title={`Wax ka beddel ${day.label}`}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "6px 12px",
+                          borderRadius: 8,
+                          border: "1px solid rgba(139,108,245,0.35)",
+                          background: "rgba(139,108,245,0.12)",
+                          color: "#c4b8f7",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <Pencil size={13} /> Edit
+                      </button>
+                      {hasSlots && (
+                        <button
+                          onClick={() => onDeleteDay(day.key)}
+                          disabled={isDeleting}
+                          title={`Tirtir ${day.label}`}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "6px 12px",
+                            borderRadius: 8,
+                            border: "1px solid rgba(239,68,68,0.35)",
+                            background: "rgba(239,68,68,0.12)",
+                            color: "#EF4444",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: isDeleting ? "not-allowed" : "pointer",
+                            opacity: isDeleting ? 0.6 : 1,
+                          }}
+                        >
+                          {isDeleting ? <Loader2 size={13} /> : <Trash2 size={13} />}
+                          {isDeleting ? "..." : "Delete"}
+                        </button>
+                      )}
                     </div>
-                  )}
-                </td>
-              </tr>
-            ))}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
