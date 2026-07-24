@@ -5,6 +5,20 @@
 // studentPhoto); nothing is typed here. Includes a "Print ID Card" button
 // that opens a clean print window with both sides, sized for a standard
 // CR80 card (85.6mm x 54mm) at 300dpi print scale.
+//
+// On first render (if no card doc exists yet), the full student record is
+// duplicated into the `studentIdCards` Firestore collection, keyed by
+// studentId, so issued cards have their own persistent snapshot.
+
+import { useEffect, useState } from "react";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db } from "../firebase"; // adjust path to your firebase init file
+import schoolLogo from "../assets/rising-star-logo.png";
 
 const SCHOOL = {
   name1: "RISING STAR",
@@ -53,6 +67,11 @@ function CardStyles() {
         background: #ffffff;
         box-shadow: 0 18px 44px rgba(0,0,0,0.35);
         font-family: 'Poppins','Inter','Segoe UI',system-ui,sans-serif;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+      }
+      .idc-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 24px 54px rgba(0,0,0,0.4);
       }
 
       /* ---------- FRONT ---------- */
@@ -85,12 +104,13 @@ function CardStyles() {
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        font-size: 10px;
-        font-weight: 800;
-        color: #1c6b3a;
-        text-align: center;
-        line-height: 1.1;
+        overflow: hidden;
         box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      }
+      .idc-logo-badge img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
       }
       .idc-school-block { line-height: 1.05; }
       .idc-school-name1 {
@@ -177,6 +197,7 @@ function CardStyles() {
         border-radius: 8px;
         border: 3px solid #1c6b3a;
         background: #eef3ee;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.18);
       }
       .idc-photo-placeholder {
         width: 84px;
@@ -308,6 +329,7 @@ function CardStyles() {
         .idc-print-hide { display: none !important; }
         .idc-wrap { gap: 0; padding: 0; }
         .idc-card { box-shadow: none; page-break-inside: avoid; }
+        .idc-card:hover { transform: none; box-shadow: none; }
       }
     `}</style>
   );
@@ -353,9 +375,9 @@ function CardFront({ student, studentId }) {
       </div>
 
       <div className="idc-front-header">
-        <div className="idc-logo-badge">RISING
-STAR
-SCHOOL</div>
+        <div className="idc-logo-badge">
+          <img src={schoolLogo} alt="Rising Star School logo" />
+        </div>
         <div className="idc-school-block">
           <div className="idc-school-name1">{SCHOOL.name1}</div>
           <div className="idc-school-name2">{SCHOOL.name2}</div>
@@ -440,6 +462,41 @@ function CardBack() {
 
 export default function StudentIdCard({ student, studentId }) {
   const issued = formatDate(student?.createdAt);
+  const [saving, setSaving] = useState(false);
+
+  // Duplicate the full student record into `studentIdCards/{studentId}`
+  // the first time this card is issued/viewed, so each issued card has
+  // its own persistent snapshot independent of later edits to the
+  // original student record.
+  useEffect(() => {
+    if (!studentId || !student) return;
+
+    let cancelled = false;
+
+    async function ensureCardRecord() {
+      try {
+        setSaving(true);
+        const cardRef = doc(db, "studentIdCards", studentId);
+        const existing = await getDoc(cardRef);
+        if (!existing.exists() && !cancelled) {
+          await setDoc(cardRef, {
+            ...student,
+            studentId,
+            issuedAt: serverTimestamp(),
+          });
+        }
+      } catch (err) {
+        console.error("Failed to save studentIdCards record:", err);
+      } finally {
+        if (!cancelled) setSaving(false);
+      }
+    }
+
+    ensureCardRecord();
+    return () => {
+      cancelled = true;
+    };
+  }, [studentId, student]);
 
   const handlePrint = () => {
     const printWindow = window.open("", "_blank", "width=900,height=650");
@@ -460,7 +517,7 @@ export default function StudentIdCard({ student, studentId }) {
           ${stylesHtml}
           <style>
             body { margin: 0; padding: 24px; display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; background: #eee; font-family: sans-serif; }
-            .idc-card { box-shadow: 0 4px 14px rgba(0,0,0,0.2); }
+            .idc-card { box-shadow: none; }
           </style>
         </head>
         <body>
@@ -492,6 +549,7 @@ export default function StudentIdCard({ student, studentId }) {
       <div className="idc-print-hide" style={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
         <button
           onClick={handlePrint}
+          disabled={saving}
           style={{
             background: "#14532d",
             color: "#fff",
@@ -500,7 +558,8 @@ export default function StudentIdCard({ student, studentId }) {
             padding: "12px 28px",
             fontWeight: 700,
             fontSize: 14,
-            cursor: "pointer",
+            cursor: saving ? "default" : "pointer",
+            opacity: saving ? 0.7 : 1,
             boxShadow: "0 10px 24px rgba(20,83,45,0.35)",
           }}
         >
@@ -509,7 +568,7 @@ export default function StudentIdCard({ student, studentId }) {
       </div>
 
       {issued?.str && (
-        <div style={{ textAlign: "center", fontSize: 11, color: "#8b97b0", marginTop: 10 }}>
+        <div style={{ textAlign: "center", fontSize: 11, color: "#8b97b0", marginTop: 10 }} className="idc-print-hide">
           Issued: {issued.str}
         </div>
       )}
