@@ -26,7 +26,6 @@ import Messages from "./admin/pages/Messages";
 import EditTeacher from "./admin/pages/EditTeacher";
 import Shifts from "./admin/pages/Shifts";
 
-
 // STUDENT / PARENT
 import StudentDashboard from "./student/Dashboard";
 import ParentDashboard from "./parent/Dashboard";
@@ -57,7 +56,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        
+
         <Route path="/" element={<Home />} />
         <Route path="/admin/receipts" element={<Receipts />} />
         <Route path="/admin-login" element={<Login role="Admin" />} />
@@ -68,7 +67,6 @@ function App() {
         <Route path="/cashier/receipts" element={<CashierReports />} />
         <Route path="/admin/exam-cards" element={<ExamCards />} />
         <Route path="/admin/id-cards" element={<AllIdCards />} />
-        <Route path="/teacher/timetable" element={<TeacherTimetable />} />
 
         <Route path="/student/dashboard" element={<StudentDashboard />} />
         <Route path="/parent/dashboard" element={<ParentDashboard />} />
@@ -94,9 +92,11 @@ function App() {
         <Route path="/admin/timetable" element={<Timetable />} />
         <Route path="/admin/exam-timetable" element={<ExamTimetable />} />
         <Route path="/admin/shifts" element={<Shifts />} />
-        
+
         {/* Dhammaan boggagga Teacher waxay ku jiraan MessagesProvider hal mar,
-            si Sidebar/Topbar/Messages ay isku wadaagaan xogta fariimaha */}
+            si Sidebar/Topbar/Messages ay isku wadaagaan xogta fariimaha.
+            /teacher/timetable sidoo kale waa in lagu duubaa MessagesProvider
+            maxaa yeelay Sidebar.jsx wuxuu isticmaalaa useMessages(). */}
         <Route
           path="/teacher/dashboard"
           element={
@@ -150,6 +150,14 @@ function App() {
           element={
             <MessagesProvider>
               <TeacherProfile />
+            </MessagesProvider>
+          }
+        />
+        <Route
+          path="/teacher/timetable"
+          element={
+            <MessagesProvider>
+              <TeacherTimetable />
             </MessagesProvider>
           }
         />
