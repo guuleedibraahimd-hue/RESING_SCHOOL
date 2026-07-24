@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   collection,
   query,
@@ -23,6 +23,10 @@ import {
   Paperclip,
 } from "lucide-react";
 
+// Codka la dhawaajiyo marka fariin cusub soo gasho
+const NOTIFICATION_SOUND_URL =
+  "https://actions.google.com/sounds/v1/alarms/beep_short.ogg";
+
 export default function Messages() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,15 +34,35 @@ export default function Messages() {
   const [filterRole, setFilterRole] = useState("All");
   const [selected, setSelected] = useState(null);
 
+  const audioRef = useRef(null);
+  const isFirstLoad = useRef(true);
+  const knownIds = useRef(new Set());
+
   // ---- Real-time listener: fariin kasta oo soo gasha ayaa isla markiiba
-  // muuqata iyada oo aan reload la sameyn ----
+  // muuqata iyada oo aan reload la sameyn, hadana dhawaaq ayaa la siiyaa ----
   useEffect(() => {
     const q = query(collection(db, "messages"), orderBy("createdAt", "desc"));
 
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        if (isFirstLoad.current) {
+          // Markii ugu horeysay ee la soo shubo, kaliya u kaydi ID-yada
+          // yaan dhawaaqu ka dhicin fariimihii hore.
+          list.forEach((m) => knownIds.current.add(m.id));
+          isFirstLoad.current = false;
+        } else {
+          // Hel fariimaha cusub ee aan hore loo arag
+          const newOnes = list.filter((m) => !knownIds.current.has(m.id));
+          if (newOnes.length > 0) {
+            newOnes.forEach((m) => knownIds.current.add(m.id));
+            playNotificationSound();
+          }
+        }
+
+        setMessages(list);
         setLoading(false);
       },
       (err) => {
@@ -49,6 +73,17 @@ export default function Messages() {
 
     return () => unsub();
   }, []);
+
+  function playNotificationSound() {
+    try {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  }
 
   const unreadCount = messages.filter((m) => !m.read).length;
 
@@ -67,6 +102,12 @@ export default function Messages() {
     setSelected(msg);
     if (!msg.read) {
       try {
+        // Isla markiiba fariinta waxaa laga saaraa liiska "unread" -
+        // state-ka waa la update gareeyaa si notification-ku isla
+        // markiiba u yaraado, ka hor inta Firestore uu jawaabo.
+        setMessages((prev) =>
+          prev.map((m) => (m.id === msg.id ? { ...m, read: true } : m))
+        );
         await updateDoc(doc(db, "messages", msg.id), { read: true });
       } catch (err) {
         console.log(err);
@@ -76,10 +117,10 @@ export default function Messages() {
 
   async function markAllRead() {
     try {
+      const unreadIds = messages.filter((m) => !m.read).map((m) => m.id);
+      setMessages((prev) => prev.map((m) => ({ ...m, read: true })));
       await Promise.all(
-        messages
-          .filter((m) => !m.read)
-          .map((m) => updateDoc(doc(db, "messages", m.id), { read: true }))
+        unreadIds.map((id) => updateDoc(doc(db, "messages", id), { read: true }))
       );
     } catch (err) {
       console.log(err);
@@ -104,6 +145,9 @@ export default function Messages() {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0b0a1c" }}>
+      {/* Codka notification-ka - qarsoon, waxaa loo isticmaalaa kaliya JS-ka */}
+      <audio ref={audioRef} src={NOTIFICATION_SOUND_URL} preload="auto" />
+
       <Sidebar />
 
       <div style={{ flex: 1, minWidth: 0 }}>
