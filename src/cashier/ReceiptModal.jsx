@@ -10,11 +10,10 @@ import {
 import { db } from "../firebase/firebase";
 import { theme } from "./theme.js";
 
-const SCHOOL_NAME = "Rising School";
+const SCHOOL_NAME = "RISING STAR PRIMARY & SECONDARY SCHOOL";
 
 // Sanad-dugsiyeedka: bisha 1-8 waxay ka tirsan yihiin sanadkii hore
 // (Jan-Aug), bisha 9-12 waxay ka tirsan yihiin sanadka cusub (Sep-Dec).
-// Tusaale: Luulyo 2026 -> "2025/2026", Sebtembar 2026 -> "2026/2027".
 const academicYearLabel = (dateObj) => {
   const y = dateObj.getFullYear();
   const m = dateObj.getMonth() + 1; // 1-12
@@ -23,9 +22,7 @@ const academicYearLabel = (dateObj) => {
 };
 
 // Waxay si atomic ah u kordhisaa Firestore counter-ka rasiidka
-// (counters/receiptCounter) oo soo celisaa lambarka cusub, si aan
-// laba rasiid isku lambar loo yeelin xitaa haddii labo cashier
-// isku mar wax kaydiyaan.
+// (counters/receiptCounter) oo soo celisaa lambarka cusub.
 const getNextReceiptNumber = async () => {
   const counterRef = doc(db, "counters", "receiptCounter");
 
@@ -41,9 +38,9 @@ const getNextReceiptNumber = async () => {
 };
 
 // Waxay ku kaydisaa rasiidka collection-ka "receipts" si maamulku ugu
-// daawan karo dhammaan rasiidhada laga sameeyay dashboard-ka. Isticmaalka
-// lambarka rasiidka (padded, tusaale "007") ayaa loo dhigayaa doc ID-ga
-// si loo hubiyo mid kasta oo qeexan oo aan is qabsanayn.
+// daawan karo dhammaan rasiidhada laga sameeyay dashboard-ka.
+// NOTE: "receivedBy" (saxiixa) laguma kaydiyo Firestore — waa gacan-qoraal
+// oo lagu buuxiyo warqadda daabacan kadib, marna lama soo aqrin database-ka.
 const saveReceiptRecord = async (receiptNo, payment, paidDate) => {
   try {
     const receiptRef = doc(collection(db, "receipts"), receiptNo);
@@ -59,8 +56,6 @@ const saveReceiptRecord = async (receiptNo, payment, paidDate) => {
       createdAt: serverTimestamp(),
     });
   } catch (err) {
-    // Ha joojin muuqashada/print-ka rasiidka haddii kaydintu fashilanto —
-    // waxaan uun ku qoraynaa console si loo ogaado.
     console.error("Khalad ayaa dhacay markii rasiidka la kaydinayay:", err);
   }
 };
@@ -100,8 +95,6 @@ export default function ReceiptModal({ payment, onClose }) {
   useEffect(() => {
     if (!loading && receiptNo && !printedRef.current) {
       printedRef.current = true;
-      // Yar oo timeout ah si DOM-ku u dhammaystiro rendering-ka
-      // kahor intaan print dialog-ka la furin.
       const t = setTimeout(() => {
         window.print();
       }, 200);
@@ -142,47 +135,49 @@ export default function ReceiptModal({ payment, onClose }) {
             <>
               <div className="receipt-header">
                 <div className="receipt-school">{SCHOOL_NAME}</div>
-                <div className="receipt-sub">Payment Receipt</div>
+                <div className="receipt-sub">SCHOOL FEES RECEIPT</div>
+                <div className="receipt-no">No. {receiptNo}</div>
               </div>
 
               <div className="receipt-line" />
 
-              <div className="receipt-row">
-                <span>No:</span>
-                <span className="receipt-strong">{receiptNo}</span>
+              <div className="receipt-field">
+                <span className="receipt-label">Received from</span>
+                <span className="receipt-value">{payment.studentName}</span>
               </div>
-              <div className="receipt-row">
-                <span>Date:</span>
-                <span>{dateStr}</span>
+              <div className="receipt-field">
+                <span className="receipt-label">Class</span>
+                <span className="receipt-value">{payment.className || "—"}</span>
               </div>
-              <div className="receipt-row">
-                <span>Academic Year:</span>
-                <span>{academicYearLabel(paidDate)}</span>
+              <div className="receipt-field">
+                <span className="receipt-label">Month</span>
+                <span className="receipt-value">{payment.monthLabel}</span>
               </div>
-
-              <div className="receipt-line" />
-
-              <div className="receipt-row">
-                <span>Student:</span>
-                <span className="receipt-strong">{payment.studentName}</span>
+              <div className="receipt-field">
+                <span className="receipt-label">Academic Year</span>
+                <span className="receipt-value">{academicYearLabel(paidDate)}</span>
               </div>
-              <div className="receipt-row">
-                <span>Class:</span>
-                <span>{payment.className || "—"}</span>
+              <div className="receipt-field">
+                <span className="receipt-label">Date</span>
+                <span className="receipt-value">{dateStr}</span>
               </div>
-              <div className="receipt-row">
-                <span>Month:</span>
-                <span>{payment.monthLabel}</span>
-              </div>
-
-              <div className="receipt-line" />
-
-              <div className="receipt-row receipt-amount">
-                <span>Amount Paid:</span>
-                <span className="receipt-strong">${payment.paidAmount}</span>
+              <div className="receipt-field receipt-amount">
+                <span className="receipt-label">Amount</span>
+                <span className="receipt-value receipt-strong">
+                  ${payment.paidAmount}
+                </span>
               </div>
 
               <div className="receipt-line" />
+
+              {/* Received by / Signature: intentionally left BLANK.
+                  This is filled in and signed by hand on the printed
+                  paper receipt — it is never read from or written to
+                  Firestore. */}
+              <div className="receipt-signature-block">
+                <span className="receipt-label">Received by</span>
+                <span className="receipt-signature-line" />
+              </div>
 
               <div className="receipt-footer">Mahadsanid!</div>
             </>
@@ -232,55 +227,96 @@ export default function ReceiptModal({ payment, onClose }) {
         }
 
         .receipt-paper {
-          width: 302px;
-          background: #ffffff;
-          padding: 18px 16px;
-          font-family: 'Courier New', monospace;
+          width: 340px;
+          background: #FBF6E9;
+          padding: 22px 20px;
+          font-family: 'Georgia', 'Times New Roman', serif;
           color: #111827;
           box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+          border: 3px double #7a1f1f;
         }
 
         .receipt-header {
           text-align: center;
-          margin-bottom: 10px;
+          margin-bottom: 12px;
+          position: relative;
         }
 
         .receipt-school {
           font-weight: 800;
           font-size: 15px;
-          letter-spacing: 0.5px;
+          letter-spacing: 0.3px;
+          color: #14532d;
+          text-transform: uppercase;
         }
 
         .receipt-sub {
-          font-size: 11px;
-          color: #6B7280;
-          margin-top: 2px;
+          font-size: 13px;
+          font-weight: 700;
+          color: #111827;
+          margin-top: 4px;
+        }
+
+        .receipt-no {
+          font-size: 11.5px;
+          color: #111827;
+          margin-top: 4px;
+          font-weight: 700;
         }
 
         .receipt-line {
           border-top: 1px dashed #9CA3AF;
-          margin: 8px 0;
+          margin: 10px 0;
         }
 
-        .receipt-row {
+        .receipt-field {
           display: flex;
-          justify-content: space-between;
+          align-items: baseline;
+          gap: 6px;
           font-size: 12.5px;
-          margin-bottom: 4px;
+          margin-bottom: 8px;
+        }
+
+        .receipt-label {
+          color: #374151;
+          white-space: nowrap;
+        }
+
+        .receipt-value {
+          flex: 1;
+          border-bottom: 1px solid #9CA3AF;
+          padding-bottom: 1px;
+          font-weight: 600;
+          min-height: 14px;
         }
 
         .receipt-strong {
-          font-weight: 700;
+          font-weight: 800;
         }
 
         .receipt-amount {
           font-size: 14px;
+          margin-top: 4px;
+        }
+
+        .receipt-signature-block {
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
+          margin-top: 20px;
+          font-size: 12.5px;
+        }
+
+        .receipt-signature-line {
+          flex: 1;
+          border-bottom: 1px solid #9CA3AF;
+          min-height: 18px;
         }
 
         .receipt-footer {
           text-align: center;
           font-size: 12px;
-          margin-top: 10px;
+          margin-top: 14px;
           font-weight: 700;
         }
 
