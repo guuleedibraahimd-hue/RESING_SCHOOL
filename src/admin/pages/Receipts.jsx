@@ -313,11 +313,9 @@ function ReceiptViewModal({ receipt, onClose }) {
             <span className="rv-label">Date</span>
             <span className="rv-value">{formatDate(paidDate)}</span>
           </div>
-          <div className="rv-field rv-amount">
+          <div className="rv-field">
             <span className="rv-label">Amount</span>
-            <span className="rv-value rv-strong">
-              ${Number(receipt.paidAmount || 0)}
-            </span>
+            <span className="rv-value rv-blank" />
           </div>
 
           <div className="rv-line" />
@@ -399,7 +397,7 @@ function ReceiptViewModal({ receipt, onClose }) {
           min-height: 14px;
         }
         .rv-strong { font-weight: 800; }
-        .rv-amount { font-size: 14px; margin-top: 4px; }
+        .rv-blank { min-height: 14px; }
         .rv-signature-block {
           display: flex;
           align-items: baseline;

@@ -161,11 +161,9 @@ export default function ReceiptModal({ payment, onClose }) {
                 <span className="receipt-label">Date</span>
                 <span className="receipt-value">{dateStr}</span>
               </div>
-              <div className="receipt-field receipt-amount">
+              <div className="receipt-field">
                 <span className="receipt-label">Amount</span>
-                <span className="receipt-value receipt-strong">
-                  ${payment.paidAmount}
-                </span>
+                <span className="receipt-value receipt-blank" />
               </div>
 
               <div className="receipt-line" />
@@ -294,9 +292,8 @@ export default function ReceiptModal({ payment, onClose }) {
           font-weight: 800;
         }
 
-        .receipt-amount {
-          font-size: 14px;
-          margin-top: 4px;
+        .receipt-blank {
+          min-height: 14px;
         }
 
         .receipt-signature-block {
