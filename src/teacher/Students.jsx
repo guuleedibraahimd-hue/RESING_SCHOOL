@@ -261,8 +261,6 @@ export default function Students() {
                         <th style={th}>Photo</th>
                         <th style={th}>Name</th>
                         <th style={th}>Class</th>
-                        <th style={th}>Student Phone</th>
-                        <th style={th}>Parent Phone</th>
                         <th style={th}>Attendance %</th>
                         <th style={th}></th>
                       </tr>
@@ -289,8 +287,6 @@ export default function Students() {
                             </td>
                             <td style={td}>{s.fullName}</td>
                             <td style={td}>{s.className}</td>
-                            <td style={td}>{s.studentPhone || "-"}</td>
-                            <td style={td}>{s.parentPhone || "-"}</td>
                             <td style={td}>
                               {att ? (
                                 <span
