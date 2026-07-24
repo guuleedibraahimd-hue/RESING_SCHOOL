@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Bell, Mail, Calendar, Menu, ChevronDown } from "lucide-react";
-import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { Search, Bell, Mail, Calendar, Menu, ChevronDown, Camera } from "lucide-react";
+import { collection, query, where, onSnapshot, doc, getDoc, updateDoc } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "../../firebase/firebase";
 
 import avatar from "../assets/avatar.png";
@@ -10,6 +11,9 @@ export default function Topbar() {
   const navigate = useNavigate();
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const msgQ = query(collection(db, "messages"), where("read", "==", false));
@@ -31,6 +35,42 @@ export default function Topbar() {
       unsubNotif();
     };
   }, []);
+
+  // Load the admin's saved profile photo (admin/admin -> photoUrl) on mount.
+  useEffect(() => {
+    async function loadAdminPhoto() {
+      try {
+        const snap = await getDoc(doc(db, "admin", "admin"));
+        if (snap.exists() && snap.data().photoUrl) {
+          setPhotoUrl(snap.data().photoUrl);
+        }
+      } catch (err) {
+        console.log(err);
+      }
+    }
+    loadAdminPhoto();
+  }, []);
+
+  async function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const storage = getStorage();
+      const storageRef = ref(storage, `adminPhotos/admin-${Date.now()}-${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+
+      await updateDoc(doc(db, "admin", "admin"), { photoUrl: url });
+      setPhotoUrl(url);
+    } catch (err) {
+      console.error("Khalad sawirka admin-ka la soo shubayay:", err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   return (
     <div
@@ -102,16 +142,53 @@ export default function Topbar() {
         </IconButton>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-          <img
-            src={avatar}
-            alt="Admin"
+          <div
+            onClick={() => fileInputRef.current?.click()}
             style={{
+              position: "relative",
               width: 40,
               height: 40,
-              borderRadius: "50%",
-              objectFit: "cover",
+              flexShrink: 0,
+              cursor: "pointer",
             }}
-          />
+            title="Beddel sawirka profile-ka"
+          >
+            <img
+              src={photoUrl || avatar}
+              alt="Admin"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                objectFit: "cover",
+                opacity: uploading ? 0.5 : 1,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                bottom: -2,
+                right: -2,
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: "#16a34a",
+                border: "2px solid #fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Camera size={9} color="#fff" />
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              style={{ display: "none" }}
+            />
+          </div>
           <div style={{ lineHeight: 1.2 }}>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: "#111827" }}>Admin User</div>
             <div style={{ fontSize: 11.5, color: "#9CA3AF" }}>Super Admin</div>
