@@ -34,6 +34,7 @@ const menus = [
   { name: "Timetable", icon: CalendarDays, path: "/admin/timetable" },
   { name: "Exam Timetable", icon: FileEdit, path: "/admin/exam-timetable" },
   { name: "Exam Cards", icon: IdCard, path: "/admin/exam-cards" },
+  { name: "ID Cards", icon: IdCard, path: "/admin/id-cards" },
   { name: "Add Cashier", icon: Wallet, path: "/admin/add-cashier" },
   { name: "Receipts", icon: Receipt, path: "/admin/receipts" },
   { name: "Messages", icon: MessageCircle, path: "/admin/messages" },
