@@ -1,13 +1,20 @@
 // src/teacher/ViewTimetable.jsx
 // Macallinku wuxuu halkan ka arkaa dhammaan xiisadihiisa (shifts) ee
-// maamulku u sameeyay, isku darsan Class + Subject + Maalin + Waqti.
-// Xogtu waxay ka imaanaysaa teacher document-ka: data.classes array,
-// halkaas oo mid kasta leh { className, subject, days: [...],
-// shifts: { [day]: [{ startTime, endTime }] } }.
+// maamulku u sameeyay, isaga oo ka soo akhrinaya collection-ka
+// "timetable" (F4__Saturday, F3__Monday, iwm), oo mid kasta leh:
+// { className, day, sessions: [{ id, sessionNumber, startTime,
+// endTime, subject, teacherId }] }.
+//
+// Halkan waxaan si toos ah uga soo akhrinaynaa DHAMMAAN documents-ka
+// collection "timetable", kadibna gudaha JS-ka ku shaandheynaa
+// sessions-ka teacherId-giisu la mid yahay macallinka soo galay.
+// Sidaas ayaan uga fogaanaynaa Firestore composite index error-ka
+// (failed-precondition), maxaa yeelay ma isticmaaleyno where() +
+// orderBy() isku darsan.
 
 import { useEffect, useState } from "react";
 import { db } from "../firebase/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { CalendarDays, Clock, BookOpen } from "lucide-react";
 
 import Sidebar from "./Sidebar";
@@ -106,6 +113,8 @@ function ViewTimetableStyles() {
 
 export default function ViewTimetable() {
   const [teacherName, setTeacherName] = useState("Teacher");
+  // classes halkan waa liis "session cards" oo ka soo baxay collection-ka
+  // timetable, hal walba oo leh { className, day, subject, startTime, endTime }
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeDay, setActiveDay] = useState(() => {
@@ -131,15 +140,45 @@ export default function ViewTimetable() {
         return;
       }
 
-      const teacherSnap = await getDoc(doc(db, "teachers", teacherId));
-      if (teacherSnap.exists()) {
-        const data = teacherSnap.data();
-        if (data.fullName) setTeacherName(data.fullName);
-        const teacherClasses = Array.isArray(data.classes) ? data.classes : [];
-        setClasses(teacherClasses);
-      } else {
-        setClasses([]);
-      }
+      // Ka soo akhri DHAMMAAN documents-ka collection "timetable".
+      // Ma isticmaaleyno where()/orderBy() halkan si aan uga fogaanno
+      // Firestore composite-index error-ka; shaandheynta waxaa lagu
+      // sameeyaa gudaha JS-ka kadib.
+      const snap = await getDocs(collection(db, "timetable"));
+
+      const sessionCards = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        const day = data.day;
+        const className = data.className;
+        const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+
+        sessions.forEach((s) => {
+          // Kaliya sessions-ka teacherId-giisu la mid yahay macallinka
+          // soo galay ayaa loo soo bandhigayaa — macallimiinta kale
+          // xiisadahaas ma arki karaan.
+          if (s.teacherId !== teacherId) return;
+
+          sessionCards.push({
+            className,
+            day,
+            subject: s.subject || "—",
+            startTime: s.startTime || "--:--",
+            endTime: s.endTime || "--:--",
+            sessionNumber: s.sessionNumber,
+            id: s.id || `${docSnap.id}_${s.sessionNumber}`,
+          });
+        });
+      });
+
+      // Kala sooc si ay maalinba maalinta xigta sessionNumber-kiisa u socoto
+      sessionCards.sort((a, b) => {
+        const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
+        if (dayDiff !== 0) return dayDiff;
+        return (a.sessionNumber || 0) - (b.sessionNumber || 0);
+      });
+
+      setClasses(sessionCards);
     } catch (err) {
       console.log(err);
       setClasses([]);
@@ -148,28 +187,12 @@ export default function ViewTimetable() {
     }
   };
 
-  // Dooro classes-ka la dhigayo maalinta la doortay
-  const classesForDay = classes.filter((c) => {
-    const days = Array.isArray(c.days) ? c.days : [];
-    return days.includes(activeDay);
-  });
-
-  // Ka soo saar shifts-ka maalinta la doortay ee class-kan gaarka ah
-  const getShiftsForDay = (cls) => {
-    if (!cls.shifts) return [];
-    const dayShifts = cls.shifts[activeDay];
-    if (Array.isArray(dayShifts)) return dayShifts;
-    return [];
-  };
+  // Sessions-ka maalinta la doortay
+  const classesForDay = classes.filter((c) => c.day === activeDay);
 
   // Dhammaan maalmaha uu macallinku xiisad ku leeyahay, si loo tuso
   // bar (dot) tabka maalinta haddii xiisad ku jiraan
-  const daysWithClasses = new Set();
-  classes.forEach((c) => {
-    if (Array.isArray(c.days)) {
-      c.days.forEach((d) => daysWithClasses.add(d));
-    }
-  });
+  const daysWithClasses = new Set(classes.map((c) => c.day));
 
   return (
     <div className="vt-layout">
@@ -238,10 +261,9 @@ export default function ViewTimetable() {
             ) : (
               <div className="vt-classes-grid">
                 {classesForDay.map((cls, idx) => {
-                  const shifts = getShiftsForDay(cls);
                   const accent = dayColors[activeDay] || "#8B5CF6";
                   return (
-                    <div key={idx} className="vt-class-card">
+                    <div key={cls.id || idx} className="vt-class-card">
                       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
                         <div
                           style={{
@@ -259,7 +281,7 @@ export default function ViewTimetable() {
                         </div>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ color: "#fff", fontWeight: 700, fontSize: 15 }}>
-                            {cls.subject || "—"}
+                            {cls.subject}
                           </div>
                           <div style={{ color: "#94A3B8", fontSize: 12.5 }}>
                             Fasalka: {cls.className || "—"}
@@ -267,20 +289,12 @@ export default function ViewTimetable() {
                         </div>
                       </div>
 
-                      {shifts.length === 0 ? (
-                        <div style={{ color: "#64748B", fontSize: 13, marginTop: 12 }}>
-                          Waqti lama qeexin.
-                        </div>
-                      ) : (
-                        shifts.map((s, si) => (
-                          <div key={si} className="vt-shift-row">
-                            <Clock size={16} color={accent} style={{ flexShrink: 0 }} />
-                            <span style={{ color: "#fff", fontWeight: 600, fontSize: 13.5 }}>
-                              {s.startTime || "--:--"} – {s.endTime || "--:--"}
-                            </span>
-                          </div>
-                        ))
-                      )}
+                      <div className="vt-shift-row">
+                        <Clock size={16} color={accent} style={{ flexShrink: 0 }} />
+                        <span style={{ color: "#fff", fontWeight: 600, fontSize: 13.5 }}>
+                          {cls.startTime} – {cls.endTime}
+                        </span>
+                      </div>
                     </div>
                   );
                 })}
@@ -299,9 +313,7 @@ export default function ViewTimetable() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {dayOrder.map((day) => {
-                  const dayClasses = classes.filter(
-                    (c) => Array.isArray(c.days) && c.days.includes(day)
-                  );
+                  const dayClasses = classes.filter((c) => c.day === day);
                   if (dayClasses.length === 0) return null;
                   const accent = dayColors[day] || "#8B5CF6";
 
@@ -335,39 +347,29 @@ export default function ViewTimetable() {
                       </div>
 
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        {dayClasses.map((cls, idx) => {
-                          const shifts =
-                            cls.shifts && Array.isArray(cls.shifts[day])
-                              ? cls.shifts[day]
-                              : [];
-                          return (
-                            <div
-                              key={idx}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                flexWrap: "wrap",
-                                gap: 6,
-                                fontSize: 13,
-                              }}
-                            >
-                              <span style={{ color: "#E2E8F0" }}>
-                                {cls.subject || "—"}{" "}
-                                <span style={{ color: "#64748B" }}>
-                                  ({cls.className || "—"})
-                                </span>
+                        {dayClasses.map((cls, idx) => (
+                          <div
+                            key={cls.id || idx}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              flexWrap: "wrap",
+                              gap: 6,
+                              fontSize: 13,
+                            }}
+                          >
+                            <span style={{ color: "#E2E8F0" }}>
+                              {cls.subject}{" "}
+                              <span style={{ color: "#64748B" }}>
+                                ({cls.className || "—"})
                               </span>
-                              <span style={{ color: "#94A3B8" }}>
-                                {shifts.length === 0
-                                  ? "—"
-                                  : shifts
-                                      .map((s) => `${s.startTime || "--:--"}-${s.endTime || "--:--"}`)
-                                      .join(", ")}
-                              </span>
-                            </div>
-                          );
-                        })}
+                            </span>
+                            <span style={{ color: "#94A3B8" }}>
+                              {cls.startTime}-{cls.endTime}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   );
