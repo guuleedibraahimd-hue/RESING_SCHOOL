@@ -69,6 +69,7 @@ function App() {
         <Route path="/admin/exam-cards" element={<ExamCards />} />
         <Route path="/admin/id-cards" element={<AllIdCards />} />
         <Route path="/teacher/timetable" element={<TeacherTimetable />} />
+        <Route path="/teacher/timetable" element={<ViewTimetable />} />
 
         <Route path="/student/dashboard" element={<StudentDashboard />} />
         <Route path="/parent/dashboard" element={<ParentDashboard />} />
