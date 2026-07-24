@@ -1,75 +1,38 @@
 // src/teacher/ViewTimetable.jsx
 // Macallinku wuxuu halkan ka arkaa dhammaan xiisadihiisa (shifts) ee
-// maamulku u sameeyay, isaga oo ka soo akhrinaya collection-ka
-// "timetable" (F4__Saturday, F3__Monday, iwm), oo mid kasta leh:
-// { className, day, sessions: [{ id, sessionNumber, startTime,
-// endTime, subject, teacherId }] }.
-//
-// Halkan waxaan si toos ah uga soo akhrinaynaa DHAMMAAN documents-ka
-// collection "timetable", kadibna gudaha JS-ka ku shaandheynaa
-// sessions-ka teacherId-giisu la mid yahay macallinka soo galay.
-// Sidaas ayaan uga fogaanaynaa Firestore composite index error-ka
-// (failed-precondition), maxaa yeelay ma isticmaaleyno where() +
-// orderBy() isku darsan.
-//
-// MUHIIM: maalmaha jadwalku waa isla shantii maalmood ee admin-ku
-// isticmaalo Timetable.jsx (Saturday -> Sunday -> Monday -> Tuesday
-// -> Wednesday), ee ma aha 7-da maalmood ee usbuuca oo dhan.
+// maamulku u sameeyay, isku darsan Class + Subject + Maalin + Waqti.
+// Xogtu waxay ka imaanaysaa teacher document-ka: data.classes array,
+// halkaas oo mid kasta leh { className, subject, days: [...],
+// shifts: { [day]: [{ startTime, endTime }] } }.
 
 import { useEffect, useState } from "react";
 import { db } from "../firebase/firebase";
-import { collection, getDocs } from "firebase/firestore";
-import {
-  CalendarDays,
-  Clock,
-  BookOpen,
-  Landmark,
-  Star,
-  BookMarked,
-  BarChart3,
-  Calculator,
-  Languages,
-  GraduationCap,
-} from "lucide-react";
+import { doc, getDoc } from "firebase/firestore";
+import { CalendarDays, Clock, BookOpen } from "lucide-react";
 
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import MobileBottomNav from "./MobileBottomNav";
 
-// Isla shantii maalmood ee admin-ku (Timetable.jsx) isticmaalo, isla
-// taxanahaas oo kale — si maalmuhu ay isugu jaan-goyaan labada dhinac.
-const dayOrder = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday"];
+const dayOrder = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
 
 const dayColors = {
-  Saturday: "#EF4444",
-  Sunday: "#EC4899",
   Monday: "#6D5DF0",
   Tuesday: "#8B5CF6",
   Wednesday: "#17A2B8",
+  Thursday: "#22C55E",
+  Friday: "#F59E0B",
+  Saturday: "#EF4444",
+  Sunday: "#EC4899",
 };
-
-// ---- Subject -> icon matching (auto, keyword-based) ----
-// Waxaan u eegnaa magaca maadada (subject) oo ku qoran Firestore,
-// kadibna waxaan u doorannaa icon ku habboon inta suurtagal ah.
-// Haddii aan la helin keyword la garanayo, waxaa la isticmaalaa
-// BookOpen oo ah default-ka guud.
-const SUBJECT_ICON_RULES = [
-  { keywords: ["islam", "diin", "aqoon", "akhlaaq", "quran"], icon: Landmark },
-  { keywords: ["carab", "arab"], icon: Languages },
-  { keywords: ["somali", "soomaali", "suugaan"], icon: Star },
-  { keywords: ["bulsho", "taariikh", "history", "social"], icon: BookMarked },
-  { keywords: ["saynis", "science"], icon: BarChart3 },
-  { keywords: ["xisaab", "math"], icon: Calculator },
-  { keywords: ["english", "ingiriis", "grammar"], icon: GraduationCap },
-];
-
-function getSubjectIcon(subject) {
-  const s = String(subject || "").toLowerCase();
-  for (const rule of SUBJECT_ICON_RULES) {
-    if (rule.keywords.some((k) => s.includes(k))) return rule.icon;
-  }
-  return BookOpen;
-}
 
 function ViewTimetableStyles() {
   return (
@@ -107,71 +70,35 @@ function ViewTimetableStyles() {
         border-color: transparent;
       }
 
-      .vt-shift-card {
+      .vt-classes-grid {
         display: grid;
-        grid-template-columns: 40px 44px 1fr auto auto;
-        align-items: center;
-        gap: 14px;
-        background: #0d1424;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 16px;
+      }
+
+      .vt-class-card {
+        background: #0B1120;
         border: 1px solid rgba(255,255,255,.06);
-        border-left: 4px solid var(--accent, #8B5CF6);
-        border-radius: 14px;
-        padding: 12px 16px;
+        border-radius: 18px;
+        padding: 20px;
       }
-      .vt-shift-number {
-        width: 30px;
-        height: 30px;
-        border-radius: 10px;
-        background: rgba(255,255,255,.06);
+
+      .vt-shift-row {
         display: flex;
         align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        font-size: 13px;
-        color: #E2E8F0;
-      }
-      .vt-shift-icon {
-        width: 40px;
-        height: 40px;
+        gap: 10px;
+        background: #111827;
+        border: 1px solid rgba(255,255,255,.06);
         border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: color-mix(in srgb, var(--accent, #8B5CF6) 18%, transparent);
-        flex-shrink: 0;
-      }
-      .vt-shift-time {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        color: var(--accent, #8B5CF6);
-        font-weight: 700;
-        font-size: 13px;
-        white-space: nowrap;
-      }
-      .vt-shift-session {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        color: var(--accent, #8B5CF6);
-        font-weight: 700;
-        font-size: 12.5px;
-        white-space: nowrap;
+        padding: 10px 14px;
+        margin-top: 10px;
       }
 
       @media (max-width: 900px) {
         .vt-body { padding: 0 14px 90px; }
         .vt-panel { padding: 16px !important; border-radius: 16px !important; }
+        .vt-classes-grid { grid-template-columns: 1fr; }
         .vt-day-tab { padding: 9px 14px; font-size: 12.5px; }
-        .vt-shift-card {
-          grid-template-columns: 34px 38px 1fr;
-          grid-template-areas:
-            "num icon subj"
-            "num icon time"
-            "num icon session";
-          row-gap: 4px;
-        }
-        .vt-shift-time, .vt-shift-session { justify-content: flex-start; }
       }
     `}</style>
   );
@@ -179,11 +106,12 @@ function ViewTimetableStyles() {
 
 export default function ViewTimetable() {
   const [teacherName, setTeacherName] = useState("Teacher");
-  // classes halkan waa liis "session cards" oo ka soo baxay collection-ka
-  // timetable, hal walba oo leh { className, day, subject, startTime, endTime }
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeDay, setActiveDay] = useState(dayOrder[0]);
+  const [activeDay, setActiveDay] = useState(() => {
+    const today = dayOrder[(new Date().getDay() + 6) % 7]; // Monday-first
+    return today;
+  });
 
   const teacherId = localStorage.getItem("teacherId") || "";
 
@@ -203,46 +131,15 @@ export default function ViewTimetable() {
         return;
       }
 
-      // Ka soo akhri DHAMMAAN documents-ka collection "timetable".
-      // Ma isticmaaleyno where()/orderBy() halkan si aan uga fogaanno
-      // Firestore composite-index error-ka; shaandheynta waxaa lagu
-      // sameeyaa gudaha JS-ka kadib.
-      const snap = await getDocs(collection(db, "timetable"));
-
-      const sessionCards = [];
-      snap.forEach((docSnap) => {
-        const data = docSnap.data();
-        const day = data.day;
-        const className = data.className;
-        const sessions = Array.isArray(data.sessions) ? data.sessions : [];
-
-        sessions.forEach((s) => {
-          // Kaliya sessions-ka teacherId-giisu la mid yahay macallinka
-          // soo galay ayaa loo soo bandhigayaa — macallimiinta kale
-          // xiisadahaas ma arki karaan.
-          if (s.teacherId !== teacherId) return;
-
-          sessionCards.push({
-            className,
-            day,
-            subject: s.subject || "—",
-            startTime: s.startTime || "--:--",
-            endTime: s.endTime || "--:--",
-            sessionNumber: s.sessionNumber,
-            id: s.id || `${docSnap.id}_${s.sessionNumber}`,
-          });
-        });
-      });
-
-      // Kala sooc si ay maalinba maalinta xigta sessionNumber-kiisa u socoto,
-      // iyadoo la raacayo taxanaha maalmaha ee admin-ku isticmaalo.
-      sessionCards.sort((a, b) => {
-        const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
-        if (dayDiff !== 0) return dayDiff;
-        return (a.sessionNumber || 0) - (b.sessionNumber || 0);
-      });
-
-      setClasses(sessionCards);
+      const teacherSnap = await getDoc(doc(db, "teachers", teacherId));
+      if (teacherSnap.exists()) {
+        const data = teacherSnap.data();
+        if (data.fullName) setTeacherName(data.fullName);
+        const teacherClasses = Array.isArray(data.classes) ? data.classes : [];
+        setClasses(teacherClasses);
+      } else {
+        setClasses([]);
+      }
     } catch (err) {
       console.log(err);
       setClasses([]);
@@ -251,14 +148,28 @@ export default function ViewTimetable() {
     }
   };
 
-  // Sessions-ka maalinta la doortay, kala sortan sessionNumber
-  const classesForDay = classes
-    .filter((c) => c.day === activeDay)
-    .sort((a, b) => (a.sessionNumber || 0) - (b.sessionNumber || 0));
+  // Dooro classes-ka la dhigayo maalinta la doortay
+  const classesForDay = classes.filter((c) => {
+    const days = Array.isArray(c.days) ? c.days : [];
+    return days.includes(activeDay);
+  });
+
+  // Ka soo saar shifts-ka maalinta la doortay ee class-kan gaarka ah
+  const getShiftsForDay = (cls) => {
+    if (!cls.shifts) return [];
+    const dayShifts = cls.shifts[activeDay];
+    if (Array.isArray(dayShifts)) return dayShifts;
+    return [];
+  };
 
   // Dhammaan maalmaha uu macallinku xiisad ku leeyahay, si loo tuso
   // bar (dot) tabka maalinta haddii xiisad ku jiraan
-  const daysWithClasses = new Set(classes.map((c) => c.day));
+  const daysWithClasses = new Set();
+  classes.forEach((c) => {
+    if (Array.isArray(c.days)) {
+      c.days.forEach((d) => daysWithClasses.add(d));
+    }
+  });
 
   return (
     <div className="vt-layout">
@@ -314,27 +225,8 @@ export default function ViewTimetable() {
             ))}
           </div>
 
-          {/* Classes/shifts for the selected day — card list, sida sawirka */}
+          {/* Classes/shifts for the selected day */}
           <div className="vt-panel" style={panelWrap}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 10,
-                    background: `${dayColors[activeDay] || "#8B5CF6"}26`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <CalendarDays size={17} color={dayColors[activeDay] || "#8B5CF6"} />
-                </div>
-                <h3 style={{ margin: 0, color: "#fff", fontSize: 16 }}>{activeDay}</h3>
-              </div>
-            </div>
-
             {loading ? (
               <p style={{ color: "#94A3B8", padding: 20 }}>Loading...</p>
             ) : classesForDay.length === 0 ? (
@@ -344,41 +236,51 @@ export default function ViewTimetable() {
                 </p>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div className="vt-classes-grid">
                 {classesForDay.map((cls, idx) => {
+                  const shifts = getShiftsForDay(cls);
                   const accent = dayColors[activeDay] || "#8B5CF6";
-                  const Icon = getSubjectIcon(cls.subject);
                   return (
-                    <div
-                      key={cls.id || idx}
-                      className="vt-shift-card"
-                      style={{ "--accent": accent }}
-                    >
-                      <div className="vt-shift-number" style={{ gridArea: "num" }}>
-                        {String(cls.sessionNumber ?? idx + 1).padStart(2, "0")}
-                      </div>
-
-                      <div className="vt-shift-icon" style={{ gridArea: "icon" }}>
-                        <Icon size={20} color={accent} />
-                      </div>
-
-                      <div style={{ gridArea: "subj", minWidth: 0 }}>
-                        <div style={{ color: "#fff", fontWeight: 700, fontSize: 15 }}>
-                          {cls.subject}
+                    <div key={idx} className="vt-class-card">
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                        <div
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 10,
+                            background: `${accent}26`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <BookOpen size={17} color={accent} />
                         </div>
-                        <div style={{ color: "#94A3B8", fontSize: 12.5 }}>
-                          Fasalka: {cls.className || "—"}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ color: "#fff", fontWeight: 700, fontSize: 15 }}>
+                            {cls.subject || "—"}
+                          </div>
+                          <div style={{ color: "#94A3B8", fontSize: 12.5 }}>
+                            Fasalka: {cls.className || "—"}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="vt-shift-time" style={{ gridArea: "time" }}>
-                        <Clock size={14} />
-                        {cls.startTime} - {cls.endTime}
-                      </div>
-
-                      <div className="vt-shift-session" style={{ gridArea: "session" }}>
-                        Xiisad #{cls.sessionNumber ?? idx + 1}
-                      </div>
+                      {shifts.length === 0 ? (
+                        <div style={{ color: "#64748B", fontSize: 13, marginTop: 12 }}>
+                          Waqti lama qeexin.
+                        </div>
+                      ) : (
+                        shifts.map((s, si) => (
+                          <div key={si} className="vt-shift-row">
+                            <Clock size={16} color={accent} style={{ flexShrink: 0 }} />
+                            <span style={{ color: "#fff", fontWeight: 600, fontSize: 13.5 }}>
+                              {s.startTime || "--:--"} – {s.endTime || "--:--"}
+                            </span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   );
                 })}
@@ -397,9 +299,9 @@ export default function ViewTimetable() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {dayOrder.map((day) => {
-                  const dayClasses = classes
-                    .filter((c) => c.day === day)
-                    .sort((a, b) => (a.sessionNumber || 0) - (b.sessionNumber || 0));
+                  const dayClasses = classes.filter(
+                    (c) => Array.isArray(c.days) && c.days.includes(day)
+                  );
                   if (dayClasses.length === 0) return null;
                   const accent = dayColors[day] || "#8B5CF6";
 
@@ -433,29 +335,39 @@ export default function ViewTimetable() {
                       </div>
 
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        {dayClasses.map((cls, idx) => (
-                          <div
-                            key={cls.id || idx}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              flexWrap: "wrap",
-                              gap: 6,
-                              fontSize: 13,
-                            }}
-                          >
-                            <span style={{ color: "#E2E8F0" }}>
-                              #{cls.sessionNumber ?? idx + 1} · {cls.subject}{" "}
-                              <span style={{ color: "#64748B" }}>
-                                ({cls.className || "—"})
+                        {dayClasses.map((cls, idx) => {
+                          const shifts =
+                            cls.shifts && Array.isArray(cls.shifts[day])
+                              ? cls.shifts[day]
+                              : [];
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                flexWrap: "wrap",
+                                gap: 6,
+                                fontSize: 13,
+                              }}
+                            >
+                              <span style={{ color: "#E2E8F0" }}>
+                                {cls.subject || "—"}{" "}
+                                <span style={{ color: "#64748B" }}>
+                                  ({cls.className || "—"})
+                                </span>
                               </span>
-                            </span>
-                            <span style={{ color: "#94A3B8" }}>
-                              {cls.startTime}-{cls.endTime}
-                            </span>
-                          </div>
-                        ))}
+                              <span style={{ color: "#94A3B8" }}>
+                                {shifts.length === 0
+                                  ? "—"
+                                  : shifts
+                                      .map((s) => `${s.startTime || "--:--"}-${s.endTime || "--:--"}`)
+                                      .join(", ")}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
