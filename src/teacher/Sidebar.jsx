@@ -14,6 +14,7 @@ import {
   Mail,
   User,
   LogOut,
+  CalendarDays,
 } from "lucide-react";
 import { useMessages } from "../context/MessagesContext"; // Hubi path-kan
 
@@ -24,6 +25,7 @@ const menus = [
   { name: "Exams", icon: FileEdit, path: "/teacher/exams" },
   { name: "Results", icon: BarChart3, path: "/teacher/results" },
   { name: "Students", icon: GraduationCap, path: "/teacher/students" },
+  { name: "Timetable", icon: CalendarDays, path: "/teacher/timetable" },
   { name: "Profile", icon: User, path: "/teacher/profile" },
 ];
 

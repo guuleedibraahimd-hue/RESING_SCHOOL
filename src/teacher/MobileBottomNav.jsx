@@ -1,7 +1,8 @@
 // src/teacher/MobileBottomNav.jsx
 // Bottom tab bar shown ONLY on mobile widths (<= 900px), matching the
-// student-portal pattern: Overview / ID Card / Attendance / Results /
-// Messages / Profile, each with an icon + label, active tab highlighted.
+// student-portal pattern: Overview / ID Card / Attendance / Timetable /
+// Results / Messages / Profile, each with an icon + label, active tab
+// highlighted.
 
 import { NavLink } from "react-router-dom";
 import {
@@ -11,6 +12,7 @@ import {
   BarChart3,
   Mail,
   User,
+  CalendarDays,
 } from "lucide-react";
 import { useMessages } from "../context/MessagesContext"; // Hubi path-kan
 
@@ -18,6 +20,7 @@ const tabs = [
   { name: "Overview", icon: LayoutDashboard, path: "/teacher/dashboard" },
   { name: "ID Card", icon: IdCard, path: "/teacher/id-card" },
   { name: "Attendance", icon: CalendarCheck2, path: "/teacher/attendance" },
+  { name: "Timetable", icon: CalendarDays, path: "/teacher/timetable" },
   { name: "Results", icon: BarChart3, path: "/teacher/results" },
   { name: "Messages", icon: Mail, path: "/teacher/messages" },
   { name: "Profile", icon: User, path: "/teacher/profile" },
