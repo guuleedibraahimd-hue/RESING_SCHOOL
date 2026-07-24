@@ -2,8 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Bell, Mail, Calendar, Menu, ChevronDown, Camera } from "lucide-react";
 import { collection, query, where, onSnapshot, doc, getDoc, updateDoc } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db } from "../../firebase/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../../firebase/firebase";
 
 import avatar from "../assets/avatar.png";
 
@@ -57,7 +57,6 @@ export default function Topbar() {
 
     try {
       setUploading(true);
-      const storage = getStorage();
       const storageRef = ref(storage, `adminPhotos/admin-${Date.now()}-${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
